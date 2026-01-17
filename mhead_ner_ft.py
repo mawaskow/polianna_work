@@ -20,18 +20,19 @@ import time
 import json
 import evaluate
 import tqdm
+from create_datasets import get_label_set
 
 #########################
 # classes and functions #
 #########################
 
 class MheadDataset(Dataset):
-    def __init__(self, hf_dataset, tokenizer, label2id, max_length=512):
+    def __init__(self, hf_dataset, head_lst, tokenizer, label2id, max_length=512):
         self.dataset = hf_dataset
         self.tokenizer = tokenizer
         self.label2id = label2id
         self.max_length = max_length
-        self.heads = ["Actor", "InstrumentType", "Objective", "Resource", "Time"]
+        self.heads = head_lst
     def __len__(self):
         return len(self.dataset)
     def tokenize_and_align_labels(self, tokens, ner_tag_dct):
@@ -145,30 +146,11 @@ def mhead_collate(batch, pad_token_id):
     '''
     input_ids = [b["input_ids"] for b in batch]
     attention_masks = [b["attention_mask"] for b in batch]
-    labels_Actor = [b['labels']["Actor"] for b in batch]
-    labels_InstrumentType = [b['labels']["InstrumentType"] for b in batch]
-    labels_Objective = [b['labels']["Objective"] for b in batch]
-    labels_Resource = [b['labels']["Resource"] for b in batch]
-    labels_Time = [b['labels']["Time"] for b in batch]
-    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=pad_token_id)
-    attention_masks = pad_sequence(attention_masks, batch_first=True, padding_value=0)
-    labels_Actor = pad_sequence(labels_Actor, batch_first=True, padding_value=-100)
-    labels_InstrumentType = pad_sequence(labels_InstrumentType, batch_first=True, padding_value=-100)
-    labels_Objective = pad_sequence(labels_Objective, batch_first=True, padding_value=-100)
-    labels_Resource = pad_sequence(labels_Resource, batch_first=True, padding_value=-100)
-    labels_Time = pad_sequence(labels_Time, batch_first=True, padding_value=-100)
-    batch_return = {
-        "input_ids": input_ids,
-        "attention_mask": attention_masks,
-        "labels": {
-            "Actor": labels_Actor,
-            "InstrumentType": labels_InstrumentType,
-            "Objective": labels_Objective,
-            "Resource": labels_Resource,
-            "Time": labels_Time
-        }
+    return {
+        "input_ids": pad_sequence(input_ids, batch_first=True, padding_value=pad_token_id),
+        "attention_mask": pad_sequence(attention_masks, batch_first=True, padding_value=0),
+        "labels": {head: pad_sequence([b['labels'][head] for b in batch], batch_first=True, padding_value=-100) for head in list(batch[0]['labels'])}
     }
-    return batch_return
 
 def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     seqeval = evaluate.load("seqeval")
@@ -176,7 +158,7 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     meta_metrics = {}
     total_eval_loss = 0.0
     if return_rnp:
-        heads = ["Actor", "InstrumentType", "Objective", "Resource", "Time"]
+        heads = model.heads
         pred_coll = {name: [] for name in heads}
         real_coll = {name: [] for name in heads}
     with torch.no_grad():
@@ -211,7 +193,7 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
         return meta_metrics, pred_coll, real_coll
     return meta_metrics
 
-def finetune_mhead_model(model_name, model_save_addr, dsdct_dir, r, params):
+def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params):
     '''
     Docstring for finetune_mhead_model
     
@@ -239,8 +221,8 @@ def finetune_mhead_model(model_name, model_save_addr, dsdct_dir, r, params):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    train_dataset = MheadDataset(dataset_dict["train"], tokenizer, label2id)
-    dev_dataset = MheadDataset(dataset_dict["dev"], tokenizer, label2id)
+    train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id)
+    dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id)
     train_loader = DataLoader(
         train_dataset,
         batch_size=params["batch_size"],
@@ -254,7 +236,6 @@ def finetune_mhead_model(model_name, model_save_addr, dsdct_dir, r, params):
         collate_fn=lambda b: mhead_collate(b, tokenizer.pad_token_id)
     )
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    head_lst = ["Actor", "InstrumentType", "Objective", "Resource", "Time"]
     model = MheadTokenClassifier(model_name, head_lst, dropout = params['dropout']).to(dev)
     optimizer = torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
     num_training_steps = params["num_epochs"] * len(train_loader)
@@ -318,25 +299,48 @@ def finetune_mhead_model(model_name, model_save_addr, dsdct_dir, r, params):
 
 def main():
     cwd = os.getcwd()
-    model_save_addr = cwd+"/../models/mhead"
-    dsdct_dir = cwd+"/../inputs/mhead_dsdcts"
-    '''
+    '''   
     ########### one-off ###########
-    params = {
-            "num_epochs": 15,
-            "lr": 3e-5,
-            "weight_decay": 0.01,
-            "batch_size":16,
-            "num_warmup_steps":0,
-            "patience": 3,
-            "dropout": 0.1
-        }
-    model_name = "microsoft/deberta-v3-base"
-    r = 0
-    finetune_mhead_model(model_name, model_save_addr, dsdct_dir, r, params)
+    for mode in ["a","b","c", "d"]:
+        model_save_addr = f"{cwd}/models/{mode}/mhead"
+        dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
+        label_list = get_label_set(mode, "mhead")
+        params = {
+                "num_epochs": 5,
+                "lr": 3e-5,
+                "weight_decay": 0.01,
+                "batch_size":16,
+                "num_warmup_steps":0,
+                "patience": 3,
+                "dropout": 0.1
+            }
+        model_name = "microsoft/deberta-v3-base"
+        r = 0
+        finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
+    '''
+    # subprocess
+    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
+        for mode in ["a","b","c","d"]:
+            for r in list(range(5)):
+                model_save_addr = f"{cwd}/models/{mode}/mhead"
+                dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
+                print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
+                run_st = time.time()
+                subprocess.run([
+                    "python", "train_mhead.py",
+                    mode,
+                    model_name,
+                    str(r),
+                    model_save_addr,
+                    dsdct_dir
+                ],
+                    check=True, capture_output=True, text=True)
+                print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
+                print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
+                time.sleep(2)
+         
     '''
     ########### loop mode ###########
-    
     st = time.time()
     for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
         md_st = time.time()
@@ -345,6 +349,7 @@ def main():
             run_st = time.time()
             subprocess.run([
                 "python", "train_mhead.py",
+                mode,
                 model_name,
                 str(r),
                 model_save_addr,
@@ -356,7 +361,7 @@ def main():
             time.sleep(2)
         print(f"\nAll r's of {model_name} done in {round((time.time()-md_st)/60,2)} min")
     print(f'\nAll models and runs done in {round((time.time()-st)/60,2)} min')
-    ''''''
+    '''
 
 if __name__=="__main__":
     main()

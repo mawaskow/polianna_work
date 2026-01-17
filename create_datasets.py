@@ -7,12 +7,9 @@ sghead: labels are B-class, I-class, O for all classes in one label set
 mhead: labels are BIO format in a different label set for each class
 '''
 import json
-import sys
 import pandas as pd
 import os
 from datasets import Dataset, DatasetDict, load_from_disk
-from torch.utils.data import Dataset as TorchDataset
-sys.path.insert(0, '../..') # ensures access to src module
 
 #############
 # functions #
@@ -29,28 +26,25 @@ def df_loading(pol_dir, col_sel=["Policy","Text","Tokens","Curation"]):
 
 ################################ SGHEAD ################################
 
-def extract_sghead_label_set(df):
-    '''
-    Helper function for df_to_sghead_ds(df)
-    Function that basically just generates a label list that'll stay the same for any sghead run
-    but at least with a function we remember how we filtered down to these labels.
-    :param df: polianna dataframe
-    '''
-    labels = set()
-    for spancoll in df["Curation"]:
-        for spn in spancoll:
-            if spn.layer in ["Instrumenttypes", "Policydesigncharacteristics"]:
-                ftr = spn.feature
-                if ftr not in ["Compliance","Reversibility", "Reference", "InstrumentType_2", "end"]:
-                    label = ftr
-                    labels.add(label)
-    bio_labels = ["O"]
-    for l in sorted(labels):
-        bio_labels.append(f"B-{l}")
-        bio_labels.append(f"I-{l}")
-    return bio_labels
+def get_label_set(mode, method):
+    if mode == "a": 
+        labels = ["Actor", "InstrumentType", "Objective", "Resource", "Time"]
+    elif mode == "b":
+        labels = ["Policydesigncharacteristics", "Technologyandapplicationspecificity", "Instrumenttypes"]
+    elif mode == "c": 
+        labels = ["Actor", "InstrumentType", "TechnologySpecificity", "EnergySpecificity", "Compliance", "ApplicationSpecificity", "Reference", "Objective", "Time", "Resource"]
+    elif mode == "d":
+        labels = ["Actor", "InstrumentType", "Objective"]
+    if method == "sghead":
+        bio_labels = ["O"]
+        for l in sorted(labels):
+            bio_labels.append(f"B-{l}")
+            bio_labels.append(f"I-{l}")
+        return bio_labels
+    elif method == "mhead":
+        return labels
 
-def span_to_sghead_lbls(tokens, spans):
+def span_to_sghead_lbls(mode, tokens, spans):
     '''
     Helper function for df_to_sghead_ds(df)
     For an article in the polianna dataframe, takes the list of token objects and the list of span objects
@@ -62,26 +56,41 @@ def span_to_sghead_lbls(tokens, spans):
     '''
     token_labels = ["O"] * len(tokens)
     for spn in spans:
-        if spn.layer in ["Instrumenttypes", "Policydesigncharacteristics"]:
-                ftr = spn.feature
-                if ftr not in ["Compliance","Reversibility", "Reference", "InstrumentType_2", "end"]:
-                    start_char = spn.start
-                    end_char = spn.stop
-                    #
-                    inside_tokens = []
-                    for i, tok in enumerate(tokens):
-                        tok_start = tok.start
-                        tok_end = tok.stop
-                        overlap = not (tok_end <= start_char or tok_start >= end_char)
-                        if overlap:
-                            inside_tokens.append(i)
-                    if inside_tokens:
-                        token_labels[inside_tokens[0]] = f"B-{ftr}"
-                        for i in inside_tokens[1:]:
-                            token_labels[i] = f"I-{ftr}"
+        if mode in ["a", "c", "d"]:
+            ftr_lst = get_label_set(mode, "mhead")
+            ftr = spn.feature
+            if ftr in ftr_lst:
+                start_char = spn.start
+                end_char = spn.stop
+                inside_tokens = []
+                for i, tok in enumerate(tokens):
+                    tok_start = tok.start
+                    tok_end = tok.stop
+                    overlap = not (tok_end <= start_char or tok_start >= end_char)
+                    if overlap:
+                        inside_tokens.append(i)
+                if inside_tokens:
+                    token_labels[inside_tokens[0]] = f"B-{ftr}"
+                    for i in inside_tokens[1:]:
+                        token_labels[i] = f"I-{ftr}"
+        elif mode == "b":
+            lyr = spn.layer
+            start_char = spn.start
+            end_char = spn.stop
+            inside_tokens = []
+            for i, tok in enumerate(tokens):
+                tok_start = tok.start
+                tok_end = tok.stop
+                overlap = not (tok_end <= start_char or tok_start >= end_char)
+                if overlap:
+                    inside_tokens.append(i)
+            if inside_tokens:
+                token_labels[inside_tokens[0]] = f"B-{lyr}"
+                for i in inside_tokens[1:]:
+                    token_labels[i] = f"I-{lyr}"
     return token_labels
 
-def df_to_sghead_ds(df):
+def df_to_sghead_ds(mode, df):
     '''
     Converts pandas dataframe to huggingface dataset
     ***Currently ignores any articles longer than 512 tokens
@@ -95,7 +104,7 @@ def df_to_sghead_ds(df):
             text = df.loc[artid,"Text"]
             spans = df.loc[artid,"Curation"]
             token_texts = [t.text for t in tokens]
-            token_level_labels = span_to_sghead_lbls(tokens, spans)
+            token_level_labels = span_to_sghead_lbls(mode, tokens, spans)
             datapoints.append({
                 "id": artid,
                 "text": text,
@@ -105,7 +114,7 @@ def df_to_sghead_ds(df):
     # return pd.DataFrame(datapoints)
     return Dataset.from_list(datapoints)
 
-def create_sghead_ds(pol_dir, dir_addr):
+def create_sghead_ds(mode, pol_dir, dir_addr):
     '''
     Creates dataset of polianna pkl, converts token and span lists to list of BIO labels converted to integers, 
     and saves new dataset and the list of labels in integer order in provided address.
@@ -114,13 +123,13 @@ def create_sghead_ds(pol_dir, dir_addr):
     :param dir_addr: directory where to save dataset
     '''
     pol_df = df_loading(pol_dir)
-    ds = df_to_sghead_ds(pol_df)
+    ds = df_to_sghead_ds(mode, pol_df)
     ds.save_to_disk(dir_addr)
     print(f"Created dataset in {dir_addr}")
 
 ################################ MHEAD ################################
 
-def span_to_mhead_lbls(feature_name, tokens, spans):
+def span_to_mhead_lbls(mode, name, tokens, spans):
     '''
     Helper function to df_to_mhead_dataset(df)
     For an article in the dataframe, for a specific feature type in the annotated spans,
@@ -133,29 +142,46 @@ def span_to_mhead_lbls(feature_name, tokens, spans):
     '''
     token_labels = ["O"] * len(tokens)
     for spn in spans:
-        if spn.feature == feature_name:
-            start_char = spn.start
-            end_char = spn.stop
-            inside_tokens = []
-            for i, tok in enumerate(tokens):
-                tok_start = tok.start
-                tok_end = tok.stop
-                overlap = not (tok_end <= start_char or tok_start >= end_char)
-                if overlap:
-                    inside_tokens.append(i)
-            if inside_tokens:
-                token_labels[inside_tokens[0]] = f"B"
-                for i in inside_tokens[1:]:
-                    token_labels[i] = f"I"
+        if mode in ["a", "c", "d"]:
+            if spn.feature == name:
+                start_char = spn.start
+                end_char = spn.stop
+                inside_tokens = []
+                for i, tok in enumerate(tokens):
+                    tok_start = tok.start
+                    tok_end = tok.stop
+                    overlap = not (tok_end <= start_char or tok_start >= end_char)
+                    if overlap:
+                        inside_tokens.append(i)
+                if inside_tokens:
+                    token_labels[inside_tokens[0]] = f"B"
+                    for i in inside_tokens[1:]:
+                        token_labels[i] = f"I"
+        elif mode == "b":
+            if spn.layer == name:
+                start_char = spn.start
+                end_char = spn.stop
+                inside_tokens = []
+                for i, tok in enumerate(tokens):
+                    tok_start = tok.start
+                    tok_end = tok.stop
+                    overlap = not (tok_end <= start_char or tok_start >= end_char)
+                    if overlap:
+                        inside_tokens.append(i)
+                if inside_tokens:
+                    token_labels[inside_tokens[0]] = f"B"
+                    for i in inside_tokens[1:]:
+                        token_labels[i] = f"I"
     return token_labels
 
-def df_to_mhead_ds(df):
+def df_to_mhead_ds(mode, df):
     '''
     Converts pandas dataframe to huggingface dataset
     ***Currently ignores any articles longer than 512 tokens
     
     :param df: POLIANNA dataframe
     '''
+    lbl_lst = get_label_set(mode, "mhead")
     datapoints = []
     for artid in df.index:
         tokens = df.loc[artid,"Tokens"]
@@ -167,14 +193,14 @@ def df_to_mhead_ds(df):
             datapoint['id'] = artid
             datapoint["text"] = text
             datapoint["tokens"] = token_texts
-            for ftr in ["Actor", "InstrumentType", "Objective", "Resource", "Time"]:
-                token_level_labels = span_to_mhead_lbls(ftr, tokens, spans)
-                datapoint[f"labels_{ftr}"] = token_level_labels
+            for name in lbl_lst:
+                token_level_labels = span_to_mhead_lbls(mode, name, tokens, spans)
+                datapoint[f"labels_{name}"] = token_level_labels
             datapoints.append(datapoint)
     # return pd.DataFrame(datapoints)
     return Dataset.from_list(datapoints)
 
-def create_mhead_ds(pol_dir, dir_addr):
+def create_mhead_ds(mode, pol_dir, dir_addr):
     '''
     Creates dataset of polianna pkl, converts token and span lists to list of BIO labels converted to integers, 
     and saves new dataset and the list of labels in integer order in provided address.
@@ -183,7 +209,7 @@ def create_mhead_ds(pol_dir, dir_addr):
     :param dir_addr: directory where to save dataset
     '''
     pol_df = df_loading(pol_dir)
-    ds = df_to_mhead_ds(pol_df)
+    ds = df_to_mhead_ds(mode, pol_df)
     ds.save_to_disk(dir_addr)
     print(f"Created dataset in {dir_addr}")
 
@@ -203,18 +229,23 @@ def create_dsdcts(dataset, dsdct_dir, r_list=[0]):
 
 def main():
     cwd = os.getcwd()
-    pol_dir = cwd+"/../../src/d01_data"
+    pol_dir = cwd+"/src/d01_data"
     ### creates whole sghead and mhead datasets from original POLIANNA database
-    sghead_ds_addr = cwd+"/../inputs/sghead_ds"
-    #create_sghead_ds(pol_dir, sghead_ds_addr)
-    mhead_ds_addr = cwd+"/../inputs/mhead_ds"
-    #create_mhead_ds(pol_dir, mhead_ds_addr)
-
+    for mode in ["a", "b", "c", "d"]:
+        print(mode)
+        create_sghead_ds(mode, pol_dir, cwd+f"/inputs/{mode}/sghead_ds/")
+        create_mhead_ds(mode, pol_dir, cwd+f"/inputs/{mode}/mhead_ds")
+        print(f"Made {mode} datasets")
+    print("Made datasets")
     ### creates the dataset dictionaries for each r split from the sghead and mhead datasets
-    #sghead_ds = load_from_disk(sghead_ds_addr)
-    #create_dsdcts(sghead_ds, sghead_ds_addr+"dcts", list(range(3)))
-    mhead_ds = load_from_disk(mhead_ds_addr)
-    create_dsdcts(mhead_ds, mhead_ds_addr+"dcts", list(range(3,4)))
+    for mode in ["a", "b", "c", "d"]:
+        print(mode)
+        sghead_ds = load_from_disk(cwd+f"/inputs/{mode}/sghead_ds")
+        create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/sghead_dsdcts", list(range(5)))
+        mhead_ds = load_from_disk(cwd+f"/inputs/{mode}/mhead_ds")
+        create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/mhead_dsdcts", list(range(5)))
+        print(f"Made {mode} dsdcts")
+    print("Made datasetdcts")
 
 if __name__=="__main__":
     main()
