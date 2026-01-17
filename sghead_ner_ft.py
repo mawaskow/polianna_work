@@ -245,7 +245,7 @@ def main():
     #subprocess
     for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
         for mode in ["a", "b", "c", "d"]:
-            for r in list(range(2)):
+            for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/sghead"
                 dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
