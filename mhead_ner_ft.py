@@ -21,6 +21,7 @@ import json
 import evaluate
 import tqdm
 from create_datasets import get_label_set
+from auxil import bio_fixing, convert_numpy_torch_to_python
 
 #########################
 # classes and functions #
@@ -123,23 +124,6 @@ class MheadTokenClassifier(nn.Module):
         with open(os.path.join(save_dir, "config.json"), "w") as f:
             json.dump(config, f, indent=4)
 
-def convert_numpy_torch_to_python(obj):
-    '''
-    For converting our metrics dict to something json serializable
-    '''
-    if isinstance(obj, dict):
-        return {k: convert_numpy_torch_to_python(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_numpy_torch_to_python(v) for v in obj]
-    elif isinstance(obj, torch.Tensor):
-        return obj.item() if obj.numel() == 1 else obj.tolist()
-    elif isinstance(obj, (np.integer, np.int32, np.int64)):
-        return int(obj)
-    elif isinstance(obj, (np.floating, np.float32, np.float64)):
-        return float(obj)
-    else:
-        return obj
-
 def mhead_collate(batch, pad_token_id):
     '''
     Collate function for our pytorch DataLoader
@@ -184,13 +168,14 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
                             true_labs.append(id2label[l])
                     head_preds.append(true_preds)
                     head_labels.append(true_labs)
-                meta_metrics[head] = seqeval.compute(predictions=head_preds, references=head_labels)
+                fixed_predictions = bio_fixing("mhead", head_preds)
+                meta_metrics[head] = seqeval.compute(predictions=fixed_predictions, references=head_labels)
                 if return_rnp:
-                    pred_coll[head].append(head_preds)
+                    pred_coll[head].append(fixed_predictions)
                     real_coll[head].append(head_labels)
-    meta_metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     if return_rnp:
         return meta_metrics, pred_coll, real_coll
+    meta_metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     return meta_metrics
 
 def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params):

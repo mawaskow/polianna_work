@@ -15,27 +15,11 @@ from torch.nn.utils.rnn import pad_sequence
 import gc
 import tqdm
 from create_datasets import get_label_set
+from auxil import bio_fixing, convert_numpy_torch_to_python
 
 #############
 # functions #
 #############
-
-def convert_numpy_torch_to_python(obj):
-    '''
-    For converting our metrics dict to something json serializable
-    '''
-    if isinstance(obj, dict):
-        return {k: convert_numpy_torch_to_python(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_numpy_torch_to_python(v) for v in obj]
-    elif isinstance(obj, torch.Tensor):
-        return obj.item() if obj.numel() == 1 else obj.tolist()
-    elif isinstance(obj, (np.integer, np.int32, np.int64)):
-        return int(obj)
-    elif isinstance(obj, (np.floating, np.float32, np.float64)):
-        return float(obj)
-    else:
-        return obj
 
 class SgheadDataset(Dataset):
     def __init__(self, hf_dataset, tokenizer, label2id, max_length=512):
@@ -110,10 +94,11 @@ def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
                         true_labs.append(id2label[l])
                 all_preds.append(true_preds)
                 all_labels.append(true_labs)
-    metrics = seqeval.compute(predictions=all_preds, references=all_labels)
-    metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
+    predictions_fixed = bio_fixing("sghead", all_preds)
+    metrics = seqeval.compute(predictions=predictions_fixed, references=all_labels)
     if return_rnp:
-        return metrics, all_preds, all_labels
+        return metrics, predictions_fixed, all_labels
+    metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     return metrics
 
 def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params = None):

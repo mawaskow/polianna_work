@@ -16,9 +16,10 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import f1_score, classification_report
 from collections import Counter
-from sghead_ner_ft import SgheadDataset, sghead_collate, sghead_evaluate_model, convert_numpy_torch_to_python
+from sghead_ner_ft import SgheadDataset, sghead_collate, sghead_evaluate_model
 from mhead_ner_ft import MheadDataset, MheadTokenClassifier, mhead_collate, mhead_evaluate_model
 from create_datasets import get_label_set
+from auxil import bio_fixing, convert_numpy_torch_to_python
 
 #############
 # functions #
@@ -424,56 +425,11 @@ def display_model_report(mode, htype, model_report):
             for tag in ["B", "I", "O"]:
                 print(f"\t{tag}: real vs pred")
                 print("\t\t",round(np.mean(model_report[head]['counts']['reals'][tag])), round(np.mean(model_report[head]['counts']['preds'][tag])))
-
-def bi_fixing(mode, htype, preds):
-    label_lst = get_label_set(mode, htype)
-    if htype == "mhead":
-        preds_fixed = {head:[] for head in label_lst}
-        for head in label_lst:
-            for a, art in enumerate(preds[head]):
-                art_fixed = []
-                for i, tok in enumerate(art):
-                    if i == 0:
-                        if tok == "I":
-                            art_fixed.append("B")
-                        else:
-                            art_fixed.append(tok)
-                    elif tok=="I" and art[i-1]=="O":
-                        art_fixed.append("B")
-                    else:
-                        art_fixed.append(tok)
-                print(len(preds[head][a])==len(art_fixed))
-                #assert len(preds[head][a])==len(art_fixed)
-                preds_fixed[head].append(art_fixed)
-            print(len(preds[head])==len(preds_fixed[head]))
-            #assert len(preds[head])==len(preds_fixed[head])
-    elif htype == "sghead":
-        preds_fixed = []
-        for a, art in enumerate(preds):
-            art_fixed = []
-            for i, tok in enumerate(art):
-                if i == 0:
-                    if tok[0] == "I":
-                        art_fixed.append(f"B{tok[1:]}")
-                    else:
-                        art_fixed.append(tok)
-                elif tok[0]=="I" and art[i-1]=="O":
-                    art_fixed.append(f"B{tok[1:]}")
-                elif tok[0]=="I" and art[i-1][1:]!=tok[1:]:
-                    art_fixed.append(f"B{tok[1:]}")
-                else:
-                    art_fixed.append(tok)
-            print(len(preds[a])==len(art_fixed))
-            #assert len(preds[a])==len(art_fixed)
-            preds_fixed.append(art_fixed)
-            print(len(preds)==len(preds_fixed))
-            #assert len(preds)==len(preds_fixed)
-    return preds_fixed
                 
 def main():
     cwd = os.getcwd()
     results_dir = f"{cwd}/results"
-    what_to_do = "test_seqeval"#"display_mdlrpt"#"consolidate_models"#"prettify_results" #"get_results"
+    what_to_do = "display_mdlrpt"#"consolidate_models"#"prettify_results" #"get_results"#"test_seqeval"#"test_bifixing"#"get_results"
     ######################################################
     if what_to_do == "get_results":
         for htype in ['sghead', 'mhead']:
@@ -529,12 +485,20 @@ def main():
                         with open(f"{results_dir}/{mode}/{htype}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
                             randp = json.load(f)
                         if htype == 'sghead':
-                            reals = [[tok[0] for tok in art] for art in randp]#[tok[0] for art in randp for tok in art]
-                            preds = [[tok[1] for tok in art] for art in randp]#[tok[1] for art in randp for tok in art]
+                            reals = [[tok[0] for tok in art] for art in randp]
+                            preds = [[tok[1] for tok in art] for art in randp]
                             metrics = seqeval.compute(predictions=preds, references=reals)
+                            preds_flat = [tok for art in preds for tok in art]
+                            counts = Counter(preds_flat)
+                            print("\n-----------Before------------")
+                            print(counts)
                             print(metrics)
-                            preds = bi_fixing(mode, htype, preds)
+                            preds = bio_fixing(htype, preds)
                             metrics = seqeval.compute(predictions=preds, references=reals)
+                            preds_flat = [tok for art in preds for tok in art]
+                            counts = Counter(preds_flat)
+                            print("\n-----------After------------")
+                            print(counts)
                             print(metrics)
                         if htype == 'mhead':
                             for head in get_label_set(mode, htype):
@@ -542,10 +506,29 @@ def main():
                                 reals = [[tok[0] for tok in art] for art in randp[head]]
                                 preds = [[tok[1] for tok in art] for art in randp[head]]
                                 metrics = seqeval.compute(predictions=preds, references=reals)
+                                preds_flat = [tok for art in preds for tok in art]
+                                counts = Counter(preds_flat)
+                                print("\n-----------Before------------")
+                                print(counts)
                                 print(metrics)
-                                preds = bi_fixing(mode, htype, preds)
+                                preds = bio_fixing(htype, preds)
                                 metrics = seqeval.compute(predictions=preds, references=reals)
+                                preds_flat = [tok for art in preds for tok in art]
+                                counts = Counter(preds_flat)
+                                print("\n-----------After------------")
+                                print(counts)
                                 print(metrics)
+    elif what_to_do == "test_bifixing":
+        htype = "sghead"
+        preds = [["O", "O", "I-A", "I-A", "I-B", "I-B", "B-A", "O"], ["O", "I-A", "I-A", "B-B", "I-B"], ["I-A", "B-A", "O"]]
+        preds_2 = bio_fixing(htype, preds)
+        print(preds)
+        print(preds_2)
+        htype = "mhead"
+        preds = [["O", "O", "I", "I", "I", "I", "B", "O"], ["O", "I", "I", "B", "I", "O"], ["I", "B", "O"]]
+        preds_2 = bio_fixing(htype, preds)
+        print(preds)
+        print(preds_2)
 
 
 
