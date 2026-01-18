@@ -242,7 +242,7 @@ def main():
             }
         finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
     '''
-    #subprocess
+    ########### subprocess ###########
     for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
         for mode in ["a", "b", "c", "d"]:
             for r in list(range(5)):
@@ -262,30 +262,6 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    '''
-    ########### loop mode ###########
-    #["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]
-    md_st = time.time()
-    st = time.time()
-    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
-        md_st = time.time()
-        for r in list(range(5)):
-            print(f"\n--- Starting run {model_name} r{r} ---")
-            run_st = time.time()
-            subprocess.run([
-                "python", "train_sghead.py",
-                model_name,
-                str(r),
-                model_save_addr,
-                dsdct_dir
-            ],
-                check=True, capture_output=True, text=True)
-            print(f"\n--- Finished run {model_name} r{r} ---")
-            print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
-            time.sleep(2)
-        print(f"\nAll r's of {model_name} done in {round((time.time()-md_st)/60,2)} min")
-    print(f'\nAll models and runs done in {round((time.time()-st)/60,2)} min')
-    '''
 
 if __name__=="__main__":
     main()
