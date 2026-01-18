@@ -424,18 +424,62 @@ def display_model_report(mode, htype, model_report):
             for tag in ["B", "I", "O"]:
                 print(f"\t{tag}: real vs pred")
                 print("\t\t",round(np.mean(model_report[head]['counts']['reals'][tag])), round(np.mean(model_report[head]['counts']['preds'][tag])))
+
+def bi_fixing(mode, htype, preds):
+    label_lst = get_label_set(mode, htype)
+    if htype == "mhead":
+        preds_fixed = {head:[] for head in label_lst}
+        for head in label_lst:
+            for a, art in enumerate(preds[head]):
+                art_fixed = []
+                for i, tok in enumerate(art):
+                    if i == 0:
+                        if tok == "I":
+                            art_fixed.append("B")
+                        else:
+                            art_fixed.append(tok)
+                    elif tok=="I" and art[i-1]=="O":
+                        art_fixed.append("B")
+                    else:
+                        art_fixed.append(tok)
+                print(len(preds[head][a])==len(art_fixed))
+                #assert len(preds[head][a])==len(art_fixed)
+                preds_fixed[head].append(art_fixed)
+            print(len(preds[head])==len(preds_fixed[head]))
+            #assert len(preds[head])==len(preds_fixed[head])
+    elif htype == "sghead":
+        preds_fixed = []
+        for a, art in enumerate(preds):
+            art_fixed = []
+            for i, tok in enumerate(art):
+                if i == 0:
+                    if tok[0] == "I":
+                        art_fixed.append(f"B{tok[1:]}")
+                    else:
+                        art_fixed.append(tok)
+                elif tok[0]=="I" and art[i-1]=="O":
+                    art_fixed.append(f"B{tok[1:]}")
+                elif tok[0]=="I" and art[i-1][1:]!=tok[1:]:
+                    art_fixed.append(f"B{tok[1:]}")
+                else:
+                    art_fixed.append(tok)
+            print(len(preds[a])==len(art_fixed))
+            #assert len(preds[a])==len(art_fixed)
+            preds_fixed.append(art_fixed)
+            print(len(preds)==len(preds_fixed))
+            #assert len(preds)==len(preds_fixed)
+    return preds_fixed
                 
 def main():
     cwd = os.getcwd()
     results_dir = f"{cwd}/results"
-    what_to_do = "display_mdlrpt"#"consolidate_models"#"prettify_results" #"get_results"
+    what_to_do = "test_seqeval"#"display_mdlrpt"#"consolidate_models"#"prettify_results" #"get_results"
     ######################################################
     if what_to_do == "get_results":
         for htype in ['sghead', 'mhead']:
             for mode in ["a","b","c","d"]:
                 dsdcts_dir = f"{cwd}/inputs/{mode}/{htype}_dsdcts"
                 models_dir = f"{cwd}/models/{mode}/{htype}"
-                #label_list = get_label_set(mode, "mhead")
                 for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
                     for r in list(range(2)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
@@ -476,6 +520,33 @@ def main():
                     with open(f"{results_dir}/{mode}/{htype}/model_report_{model_name.split('/')[-1]}.json","r", encoding="utf-8") as f:
                         model_report = json.load(f)
                         display_model_report(mode, htype, model_report)
+    elif what_to_do == "test_seqeval":
+        seqeval = evaluate.load("seqeval")
+        for htype in ['sghead', 'mhead']:
+            for mode in ["a"]:#,"b","c","d"]:
+                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
+                    for r in list(range(1)):
+                        with open(f"{results_dir}/{mode}/{htype}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
+                            randp = json.load(f)
+                        if htype == 'sghead':
+                            reals = [[tok[0] for tok in art] for art in randp]#[tok[0] for art in randp for tok in art]
+                            preds = [[tok[1] for tok in art] for art in randp]#[tok[1] for art in randp for tok in art]
+                            metrics = seqeval.compute(predictions=preds, references=reals)
+                            print(metrics)
+                            preds = bi_fixing(mode, htype, preds)
+                            metrics = seqeval.compute(predictions=preds, references=reals)
+                            print(metrics)
+                        if htype == 'mhead':
+                            for head in get_label_set(mode, htype):
+                                print("\n", head)
+                                reals = [[tok[0] for tok in art] for art in randp[head]]
+                                preds = [[tok[1] for tok in art] for art in randp[head]]
+                                metrics = seqeval.compute(predictions=preds, references=reals)
+                                print(metrics)
+                                preds = bi_fixing(mode, htype, preds)
+                                metrics = seqeval.compute(predictions=preds, references=reals)
+                                print(metrics)
+
 
 
 if __name__=="__main__":
