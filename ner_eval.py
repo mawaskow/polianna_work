@@ -119,6 +119,27 @@ def consol_sghead_seqeval_results(model_names=["microsoft/deberta-v3-base", "dsl
 
 ############################# mhead tokf1
 
+def tokf1_for_mhead(predictions_dct, labels_dct):
+    '''
+    Helper function for get_mhead_tokf1
+    Generates results dictionary for provided preds and labels for tokf1 on mhead model
+    
+    :param predictions: dict of lists of lists of predictions of labels for each test entry for each featurename
+    :param labels: dict of lists of lists of labels for each test entry for each featurename
+    '''
+    results = {}
+    # for each head
+    for head_name, preds_lists in predictions_dct.items():
+        labels_lists = labels_dct[head_name] # size (batch, seq_len)
+        labels_flat = [lbl for lbl_lst in labels_lists for lbl in lbl_lst]
+        preds_flat = [pred for pred_lst in preds_lists for pred in pred_lst]
+        # micro F1
+        f1 = f1_score(labels_flat, preds_flat, average='micro')
+        clsf_rpt = classification_report(labels_flat, preds_flat, output_dict=True)
+        results[f"{head_name}"] = clsf_rpt
+        results[f"{head_name}"]["micro_f1"] = f1
+    return results
+
 def visualize_run_mhead_tokf1_results(mode, eval, model_name, r, results_dir, idas=[0]):
     '''
     Currently just for sghead and seqeval
@@ -154,54 +175,6 @@ def visualize_run_mhead_tokf1_results(mode, eval, model_name, r, results_dir, id
                     f"{pandr['pred']['Time'][ida][idx]:1}  ")
             except IndexError:
                 pass
-
-def consol_mhead_tokf1_results(model_names=["microsoft/deberta-v3-base", "dslim/bert-base-NER-uncased"], r_vals=[0,1], results_dir="./"):
-    '''
-    Given the list of model names and r values, reads the results files and consolidates into a single results file
-    
-    :param model_names: list of model names whose results it will examine
-    :param r_vals: list of r values for those model runs which it will examine
-    :param results_dir: directory address where the results files are stored
-    '''
-    results_dict = {name:{} for name in model_names}
-    for model_name in list(results_dict):
-        for ftr in ["Actor", "InstrumentType", "Objective", "Resource", "Time"]:
-            results_dict[model_name][ftr] = {"micro_f1":[]}
-    for model_name in model_names:
-        for r in r_vals:
-            with open(f"{results_dir}/tokf1_{model_name.split('/')[-1]}_{r}_results.json","r", encoding="utf-8") as f:
-                results = json.load(f)
-            for ftrname in list(results):
-                results_dict[model_name][ftrname]["micro_f1"].append(float(results[ftrname]["micro_f1"]))
-    with open(f"{results_dir}/tokf1_results.json","w", encoding="utf-8") as f:
-        json.dump(results_dict, f, indent=4)
-    return results_dict
-
-def consol_mhead_seqeval_results(model_names=["microsoft/deberta-v3-base", "dslim/bert-base-NER-uncased"], r_vals=[0,1], results_dir="./"):
-    '''
-    Given the list of model names and r values, reads the results files and consolidates into a single results file
-    
-    :param model_names: list of model names whose results it will examine
-    :param r_vals: list of r values for those model runs which it will examine
-    :param results_dir: directory address where the results files are stored
-    '''
-    results_dict = {name:{} for name in model_names}
-    for model_name in list(results_dict):
-        for ftr in ["Actor", "InstrumentType", "Objective", "Resource", "Time"]:
-            results_dict[model_name][ftr] = {"precision":[], "recall":[], "f1":[], "number":[]}
-    for model_name in model_names:
-        for r in r_vals:
-            with open(f"{results_dir}/seqeval_{model_name.split('/')[-1]}_{r}_results.json","r", encoding="utf-8") as f:
-                results = json.load(f)
-            for k in list(results):
-                if k[:4]=="over":
-                    pass
-                else:
-                    for mtr in list(results[k]):
-                        results_dict[model_name][k][mtr].append(float(results[k][mtr][0]))
-    with open(f"{results_dir}/seqeval_results.json","w", encoding="utf-8") as f:
-        json.dump(results_dict, f, indent=4)
-    return results_dict
 
 def shortestvis_tokf1(results_dict):
     '''
@@ -429,7 +402,7 @@ def display_model_report(mode, htype, model_report):
 def main():
     cwd = os.getcwd()
     results_dir = f"{cwd}/results"
-    what_to_do = "display_mdlrpt"#"consolidate_models"#"prettify_results" #"get_results"#"test_seqeval"#"test_bifixing"#"get_results"
+    what_to_do = "display_mdlrpt"#"consolidate_models"#"prettify_results"#"get_results"#"get_results"#"test_seqeval"#"test_bifixing"#
     ######################################################
     if what_to_do == "get_results":
         for htype in ['sghead', 'mhead']:
@@ -469,7 +442,7 @@ def main():
                     with open(f"{results_dir}/{mode}/{htype}/model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
                         json.dump(report, f, indent=4)
     elif what_to_do == "display_mdlrpt":
-        for htype in ['sghead', 'mhead']:
+        for htype in ["sghead", 'mhead']:
             for mode in ["a","b","c","d"]:
                 for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")

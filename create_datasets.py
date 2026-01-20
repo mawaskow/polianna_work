@@ -24,8 +24,6 @@ def df_loading(pol_dir, col_sel=["Policy","Text","Tokens","Curation"]):
     pol_df = pd.read_pickle(pol_dir+"/preprocessed_dataframe.pkl")[col_sel]
     return pol_df
 
-################################ SGHEAD ################################
-
 def get_label_set(mode, method):
     if mode == "a": 
         labels = ["Actor", "InstrumentType", "Objective", "Resource", "Time"]
@@ -90,45 +88,6 @@ def span_to_sghead_lbls(mode, tokens, spans):
                     token_labels[i] = f"I-{lyr}"
     return token_labels
 
-def df_to_sghead_ds(mode, df):
-    '''
-    Converts pandas dataframe to huggingface dataset
-    ***Currently ignores any articles longer than 512 tokens
-    
-    :param df: POLIANNA dataframe
-    '''
-    datapoints = []
-    for artid in df.index:
-        tokens = df.loc[artid,"Tokens"]
-        if len(tokens) <= 512: # we'll change this eventually
-            text = df.loc[artid,"Text"]
-            spans = df.loc[artid,"Curation"]
-            token_texts = [t.text for t in tokens]
-            token_level_labels = span_to_sghead_lbls(mode, tokens, spans)
-            datapoints.append({
-                "id": artid,
-                "text": text,
-                "tokens": token_texts,
-                "ner_tags": token_level_labels
-            })
-    # return pd.DataFrame(datapoints)
-    return Dataset.from_list(datapoints)
-
-def create_sghead_ds(mode, pol_dir, dir_addr):
-    '''
-    Creates dataset of polianna pkl, converts token and span lists to list of BIO labels converted to integers, 
-    and saves new dataset and the list of labels in integer order in provided address.
-    
-    :param pol_dir: address of polianna pkl
-    :param dir_addr: directory where to save dataset
-    '''
-    pol_df = df_loading(pol_dir)
-    ds = df_to_sghead_ds(mode, pol_df)
-    ds.save_to_disk(dir_addr)
-    print(f"Created dataset in {dir_addr}")
-
-################################ MHEAD ################################
-
 def span_to_mhead_lbls(mode, name, tokens, spans):
     '''
     Helper function to df_to_mhead_dataset(df)
@@ -174,21 +133,27 @@ def span_to_mhead_lbls(mode, name, tokens, spans):
                         token_labels[i] = f"I"
     return token_labels
 
-def df_to_mhead_ds(mode, df):
+def df_to_ds(mode, htype, df):
     '''
     Converts pandas dataframe to huggingface dataset
-    ***Currently ignores any articles longer than 512 tokens
-    
     :param df: POLIANNA dataframe
     '''
-    lbl_lst = get_label_set(mode, "mhead")
+    lbl_lst = get_label_set(mode, "mhead") # this variable is only used in mhead anyways
     datapoints = []
     for artid in df.index:
         tokens = df.loc[artid,"Tokens"]
-        if len(tokens) <= 512: # we'll change this eventually
-            text = df.loc[artid,"Text"]
-            spans = df.loc[artid,"Curation"]
-            token_texts = [t.text for t in tokens]
+        text = df.loc[artid,"Text"]
+        spans = df.loc[artid,"Curation"]
+        token_texts = [t.text for t in tokens]
+        if htype == "sghead":
+            token_level_labels = span_to_sghead_lbls(mode, tokens, spans)
+            datapoints.append({
+                "id": artid,
+                "text": text,
+                "tokens": token_texts,
+                "ner_tags": token_level_labels
+            })
+        elif htype == "mhead":
             datapoint = {}
             datapoint['id'] = artid
             datapoint["text"] = text
@@ -200,7 +165,7 @@ def df_to_mhead_ds(mode, df):
     # return pd.DataFrame(datapoints)
     return Dataset.from_list(datapoints)
 
-def create_mhead_ds(mode, pol_dir, dir_addr):
+def create_ds(mode, htype, pol_dir, dir_addr):
     '''
     Creates dataset of polianna pkl, converts token and span lists to list of BIO labels converted to integers, 
     and saves new dataset and the list of labels in integer order in provided address.
@@ -209,11 +174,9 @@ def create_mhead_ds(mode, pol_dir, dir_addr):
     :param dir_addr: directory where to save dataset
     '''
     pol_df = df_loading(pol_dir)
-    ds = df_to_mhead_ds(mode, pol_df)
+    ds = df_to_ds(mode, htype, pol_df)
     ds.save_to_disk(dir_addr)
     print(f"Created dataset in {dir_addr}")
-
-################################ Splitting ################################
 
 def create_dsdcts(dataset, dsdct_dir, r_list=[0]):
     for r in r_list:
@@ -233,8 +196,8 @@ def main():
     ### creates whole sghead and mhead datasets from original POLIANNA database
     for mode in ["a", "b", "c", "d"]:
         print(mode)
-        create_sghead_ds(mode, pol_dir, cwd+f"/inputs/{mode}/sghead_ds/")
-        create_mhead_ds(mode, pol_dir, cwd+f"/inputs/{mode}/mhead_ds")
+        create_ds(mode,"sghead", pol_dir, cwd+f"/inputs/{mode}/sghead_ds/")
+        create_ds(mode, "mhead", pol_dir, cwd+f"/inputs/{mode}/mhead_ds")
         print(f"Made {mode} datasets")
     print("Made datasets")
     ### creates the dataset dictionaries for each r split from the sghead and mhead datasets

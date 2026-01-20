@@ -20,40 +20,45 @@ from auxil import bio_fixing, convert_numpy_torch_to_python
 #############
 # functions #
 #############
-
 class SgheadDataset(Dataset):
-    def __init__(self, hf_dataset, tokenizer, label2id, max_length=512):
+    def __init__(self, hf_dataset, tokenizer, label2id, max_length=512, chunk_overlap=128):
         self.dataset = hf_dataset
         self.tokenizer = tokenizer
         self.label2id = label2id
         self.max_length = max_length
+        self.chunk_overlap = chunk_overlap
+        # let's prep these chunks
+        # __getitem__ is gonna be sooo quick
+        # also gotta bring tokenize_and_align_labels in here
+        self.items = []
+        for entry in hf_dataset:
+            tokens = entry["tokens"]
+            ner_tags = entry["ner_tags"]
+            tokenized_inputs = self.tokenizer(tokens, truncation=True, is_split_into_words=True, max_length=self.max_length, return_tensors=None,
+                                              stride=self.chunk_overlap, return_overflowing_tokens=True, return_special_tokens_mask=False, padding=False)
+            for i in range(len(tokenized_inputs["input_ids"])):
+                word_ids = tokenized_inputs.word_ids(batch_index=i)
+                #enc = tokenized_inputs.encodings[i]
+                #word_ids = enc.word_ids
+                label_ids = []
+                previous_word_idx = None
+                for word_idx in word_ids:
+                    if word_idx is None:
+                        label_ids.append(-100)
+                    elif word_idx != previous_word_idx:
+                        label_ids.append(self.label2id[ner_tags[word_idx]])
+                    else:
+                        label_ids.append(-100)
+                    previous_word_idx = word_idx
+                self.items.append({
+                    "input_ids": torch.tensor(tokenized_inputs["input_ids"][i]),
+                    "attention_mask": torch.tensor(tokenized_inputs["attention_mask"][i]),
+                    "labels": torch.tensor(label_ids),
+                })
     def __len__(self):
-        return len(self.dataset)
-    def tokenize_and_align_labels(self, tokens, ner_tags):
-        tokenized_inputs = self.tokenizer(tokens, truncation=True, is_split_into_words=True, max_length=self.max_length, return_tensors=None)
-        word_ids = tokenized_inputs.word_ids()
-        previous_word_idx = None
-        label_ids = []
-        for word_idx in word_ids:
-            if word_idx is None:
-                label_ids.append(-100)
-            elif word_idx != previous_word_idx:
-                label_ids.append(self.label2id[ner_tags[word_idx]])
-            else:
-                label_ids.append(-100)
-            previous_word_idx = word_idx
-        tokenized_inputs["labels"] = label_ids
-        return tokenized_inputs
+        return len(self.items)
     def __getitem__(self, idx):
-        sample = self.dataset[idx]
-        tokens = sample["tokens"]
-        ner_tags = sample["ner_tags"]
-        encoded = self.tokenize_and_align_labels(tokens, ner_tags)
-        return {
-            "input_ids": torch.tensor(encoded["input_ids"]),
-            "attention_mask": torch.tensor(encoded["attention_mask"]),
-            "labels": torch.tensor(encoded["labels"])
-        }
+        return self.items[idx]
 
 def sghead_collate(batch, pad_token_id):
     '''
@@ -210,7 +215,7 @@ def main():
     cwd = os.getcwd()
     '''
     ########### one-off ###########
-    for mode in ["a","b","c", "d"]:
+    for mode in ["a"]:#,"b","c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/sghead"
         dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
         label_list = get_label_set(mode, "sghead")
@@ -247,6 +252,5 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-
 if __name__=="__main__":
     main()

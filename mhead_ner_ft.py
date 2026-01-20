@@ -28,41 +28,45 @@ from auxil import bio_fixing, convert_numpy_torch_to_python
 #########################
 
 class MheadDataset(Dataset):
-    def __init__(self, hf_dataset, head_lst, tokenizer, label2id, max_length=512):
+    def __init__(self, hf_dataset, head_lst, tokenizer, label2id, max_length=512, chunk_overlap = 128):
         self.dataset = hf_dataset
         self.tokenizer = tokenizer
         self.label2id = label2id
         self.max_length = max_length
+        self.chunk_overlap = chunk_overlap
         self.heads = head_lst
+        # prechunk 
+        self.items = []
+        for entry in hf_dataset:
+            tokens = entry["tokens"]
+            ner_tag_dct = {head:entry["labels_"+head] for head in self.heads}
+            tokenized_inputs = self.tokenizer(tokens, truncation=True, is_split_into_words=True, max_length=self.max_length, return_tensors=None,
+                                    stride=self.chunk_overlap, return_overflowing_tokens=True, return_special_tokens_mask=False, padding=False)
+            for i in range(len(tokenized_inputs["input_ids"])):
+                word_ids = tokenized_inputs.word_ids(batch_index=i)
+                # for each label type/list
+                head_lbl_dct = {}
+                for head in self.heads:
+                    previous_word_idx = None
+                    label_ids = []
+                    for word_idx in word_ids:
+                        if word_idx is None:
+                            label_ids.append(-100)
+                        elif word_idx != previous_word_idx:
+                            label_ids.append(self.label2id[ner_tag_dct[head][word_idx]])
+                        else:
+                            label_ids.append(-100)
+                        previous_word_idx = word_idx
+                    head_lbl_dct[head] = label_ids
+                self.items.append({
+                    "input_ids": torch.tensor(tokenized_inputs["input_ids"][i]),
+                    "attention_mask": torch.tensor(tokenized_inputs["attention_mask"][i]),
+                    "labels": {head:torch.tensor(head_lbl_dct[head]) for head in self.heads}
+                })
     def __len__(self):
-        return len(self.dataset)
-    def tokenize_and_align_labels(self, tokens, ner_tag_dct):
-        tokenized_inputs = self.tokenizer(tokens, truncation=True, is_split_into_words=True, max_length=self.max_length, return_tensors=None)
-        word_ids = tokenized_inputs.word_ids()
-        # for each label type/list
-        for head in self.heads:
-            previous_word_idx = None
-            label_ids = []
-            for word_idx in word_ids:
-                if word_idx is None:
-                    label_ids.append(-100)
-                elif word_idx != previous_word_idx:
-                    label_ids.append(self.label2id[ner_tag_dct[head][word_idx]])
-                else:
-                    label_ids.append(-100)
-                previous_word_idx = word_idx
-            tokenized_inputs[head] = label_ids
-        return tokenized_inputs
+        return len(self.items)
     def __getitem__(self, idx):
-        sample = self.dataset[idx]
-        tokens = sample["tokens"]
-        ner_tag_dct = {head:sample["labels_"+head] for head in self.heads}
-        encoded = self.tokenize_and_align_labels(tokens, ner_tag_dct)
-        return {
-            "input_ids": torch.tensor(encoded["input_ids"]),
-            "attention_mask": torch.tensor(encoded["attention_mask"]),
-            "labels": {head:torch.tensor(encoded[head]) for head in self.heads}
-        }
+        return self.items[idx]
 
 class MheadTokenClassifier(nn.Module):
     def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1):
@@ -284,14 +288,14 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    '''   
+    '''
     ########### one-off ###########
-    for mode in ["a","b","c", "d"]:
+    for mode in ["a"]:#,"b","c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/mhead"
         dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
         label_list = get_label_set(mode, "mhead")
         params = {
-                "num_epochs": 5,
+                "num_epochs": 7,
                 "lr": 3e-5,
                 "weight_decay": 0.01,
                 "batch_size":16,
@@ -299,7 +303,7 @@ def main():
                 "patience": 3,
                 "dropout": 0.1
             }
-        model_name = "microsoft/deberta-v3-base"
+        model_name = "FacebookAI/xlm-roberta-base"
         r = 0
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
     '''
@@ -323,6 +327,7 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
+    
 
 if __name__=="__main__":
     main()
