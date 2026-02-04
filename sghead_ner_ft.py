@@ -90,13 +90,17 @@ def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
             logits = outputs.logits
             predictions = torch.argmax(logits, dim=-1).cpu().numpy()
             labels = batch["labels"].cpu().numpy()
+            # for sentence token list labels in list of batch sentences
             for preds, labs in zip(predictions, labels):
+                # holds the label(not id) label for each tok in sentence
                 true_preds = []
                 true_labs = []
+                # for token label in sentence token list labels
                 for p, l in zip(preds, labs):
                     if l != -100:
                         true_preds.append(id2label[p])
                         true_labs.append(id2label[l])
+                # append sentence token list to list of sentences
                 all_preds.append(true_preds)
                 all_labels.append(true_labs)
     predictions_fixed = bio_fixing("sghead", all_preds)
@@ -133,8 +137,12 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id)
-    dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id)
+    if model_name == "answerdotai/ModernBERT-base":
+        train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id, max_length=2048)
+        dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id, max_length=2048)
+    else:
+        train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id)
+        dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id)
     train_loader = DataLoader(
         train_dataset,
         batch_size=params["batch_size"],
@@ -213,28 +221,28 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
 
 def main():
     cwd = os.getcwd()
-    '''
+    
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/sghead"
         dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
         label_list = get_label_set(mode, "sghead")
         #
-        model_name = "FacebookAI/xlm-roberta-base"
+        model_name = "answerdotai/ModernBERT-base"
         r = 0
         params = {
-                "num_epochs": 7,
-                "lr": 3e-5,
-                "weight_decay": 0.01,
-                "batch_size":16,
-                "num_warmup_steps":0,
-                "patience": 3
+            "num_epochs": 25,
+            "lr": 3e-5,
+            "weight_decay": 0.01,
+            "batch_size":16,
+            "num_warmup_steps":0,
+            "patience": 5
             }
         finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
-        for mode in ["a", "b", "c", "d"]:
+    for model_name in ["answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
+        for mode in ["a", "b"]: #c,d
             for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/sghead"
                 dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
@@ -252,5 +260,6 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
+    '''
 if __name__=="__main__":
     main()

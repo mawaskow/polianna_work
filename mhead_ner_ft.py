@@ -161,22 +161,32 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
             predictions= {head: torch.argmax(logits[head], dim=-1).cpu().numpy() for head in logits}
             labels = {head: batch["labels"][head].cpu().numpy() for head in batch["labels"]}
             for head in predictions:
+                # for this batch, for this head in the batch
+                # records the list of prediction labels in sentence list form
                 head_preds =[]
                 head_labels = []
+                # predictions is list of lists of sentence labels from batch
+                # preds is the list of labels for a single sentence
                 for preds, labs in zip(predictions[head], labels[head]):
-                    true_preds = []
-                    true_labs = []
+                    # art_preds holds the label(not id) versions of the predictions
+                    # for each sentence
+                    art_preds = []
+                    art_labs = []
+                    # for p,s [each label]
                     for p, l in zip(preds, labs):
                         if l != -100:
-                            true_preds.append(id2label[p])
-                            true_labs.append(id2label[l])
-                    head_preds.append(true_preds)
-                    head_labels.append(true_labs)
+                            art_preds.append(id2label[p])
+                            art_labs.append(id2label[l])
+                    # now appends the sentence/list of labels to head_preds list
+                    head_preds.append(art_preds)
+                    head_labels.append(art_labs)
                 fixed_predictions = bio_fixing("mhead", head_preds)
-                meta_metrics[head] = seqeval.compute(predictions=fixed_predictions, references=head_labels)
-                if return_rnp:
-                    pred_coll[head].append(fixed_predictions)
-                    real_coll[head].append(head_labels)
+                # for pred_coll's head list, extend with the list of lists
+                # not append bc that makes lists of lists of lists
+                pred_coll[head].extend(fixed_predictions)
+                real_coll[head].extend(head_labels)
+    for head in list(pred_coll):
+        meta_metrics[head] = seqeval.compute(predictions=pred_coll[head], references=real_coll[head])
     if return_rnp:
         return meta_metrics, pred_coll, real_coll
     meta_metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
@@ -210,8 +220,12 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id)
-    dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id)
+    if model_name == "answerdotai/ModernBERT-base":
+        train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=2048)
+        dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=2048)
+    else:
+        train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id)
+        dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id)
     train_loader = DataLoader(
         train_dataset,
         batch_size=params["batch_size"],
@@ -288,28 +302,28 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    '''
+    
     ########### one-off ###########
-    for mode in ["a"]:#,"b","c", "d"]:
+    for mode in ["a"]:#,"b"]:#,"c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/mhead"
         dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
         label_list = get_label_set(mode, "mhead")
         params = {
-                "num_epochs": 7,
+                "num_epochs": 25,
                 "lr": 3e-5,
                 "weight_decay": 0.01,
                 "batch_size":16,
                 "num_warmup_steps":0,
-                "patience": 3,
+                "patience": 5,
                 "dropout": 0.1
             }
-        model_name = "FacebookAI/xlm-roberta-base"
+        model_name = "answerdotai/ModernBERT-base"
         r = 0
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
-        for mode in ["a","b","c","d"]:
+    for model_name in ["FacebookAI/xlm-roberta-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+        for mode in ["a","b"]:#,"c","d"]:
             for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/mhead"
                 dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
@@ -327,7 +341,7 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    
+    '''
 
 if __name__=="__main__":
     main()
