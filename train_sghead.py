@@ -7,13 +7,14 @@ from sghead_ner_ft import finetune_sghead_model
 from create_datasets import get_label_set
 
 params = {
-            "num_epochs": 25,
-            "lr": 3e-5,
-            "weight_decay": 0.01,
-            "batch_size":16,
-            "num_warmup_steps":0,
-            "patience": 5
-        }
+    "num_epochs": 25,
+    "lr": 5e-5,#1e-4,#2e-5,#3e-5,
+    "weight_decay": 0.01,
+    "batch_size":16,
+    "num_warmup_steps":0,
+    "patience": 5,
+    "max_length": 2048
+}
 
 if __name__ == '__main__':
     mode = sys.argv[1]

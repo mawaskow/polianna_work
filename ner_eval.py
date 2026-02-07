@@ -474,15 +474,15 @@ def main():
     cwd = os.getcwd()
     results_dir = f"{cwd}/results"
     # get_results > prettify_results > consolidate_models > display_mdlrpt
-    what_to_do = "display_mdlrpt"#"consolidate_models"#"prettify_results"#"get_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
+    what_to_do = "get_results"#"display_mdlrpt"#"consolidate_models"#"prettify_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
     ######################################################
     if what_to_do == "get_results":
-        for htype in ['sghead', 'mhead']:
-            for mode in ["a","b"]:#,"c","d"]:
+        for htype in ['mhead']:#, 'mhead']:
+            for mode in ["a"]:#,"b"]:#,"c","d"]:
                 dsdcts_dir = f"{cwd}/inputs/{mode}/{htype}_dsdcts"
                 models_dir = f"{cwd}/models/{mode}/{htype}"
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
-                    for r in list(range(5)):
+                for model_name in ["answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+                    for r in list(range(2)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
                         metrics, preds, reals = evaluate_model(mode, htype, model_name, models_dir, dsdcts_dir, r)
                         with open(f"{results_dir}/{mode}/{htype}/metrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:

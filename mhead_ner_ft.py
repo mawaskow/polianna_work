@@ -145,10 +145,9 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     model.eval()
     meta_metrics = {}
     total_eval_loss = 0.0
-    if return_rnp:
-        heads = model.heads
-        pred_coll = {name: [] for name in heads}
-        real_coll = {name: [] for name in heads}
+    heads = model.heads
+    pred_coll = {name: [] for name in heads}
+    real_coll = {name: [] for name in heads}
     with torch.no_grad():
         for batch in dataloader:
             batch = {
@@ -210,7 +209,8 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
             "batch_size":16,
             "num_warmup_steps":0,
             "patience": 3,
-            "dropout": 0.1
+            "dropout": 0.1,
+            "max_length": 512
         }
     label_list = ['O', 'B', 'I']
     label2id = {l: i for i, l in enumerate(label_list)}
@@ -221,8 +221,8 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
         tokenizer.pad_token = tokenizer.eos_token
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
     if model_name == "answerdotai/ModernBERT-base":
-        train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=2048)
-        dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=2048)
+        train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=params['max_length'])
+        dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=params['max_length'])
     else:
         train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id)
         dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id)
@@ -302,29 +302,30 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    
+    '''
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/mhead"
         dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
         label_list = get_label_set(mode, "mhead")
         params = {
-                "num_epochs": 25,
-                "lr": 3e-5,
-                "weight_decay": 0.01,
-                "batch_size":16,
-                "num_warmup_steps":0,
-                "patience": 5,
-                "dropout": 0.1
-            }
+            "num_epochs": 25,
+            "lr": 2e-5,#3e-5,
+            "weight_decay": 0.01,
+            "batch_size":16,
+            "num_warmup_steps":0,
+            "patience": 5,
+            "dropout": 0.1,
+            "max_length": 1024
+        }
         model_name = "answerdotai/ModernBERT-base"
         r = 0
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
     '''
     ########### subprocess ###########
-    for model_name in ["FacebookAI/xlm-roberta-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
-        for mode in ["a","b"]:#,"c","d"]:
-            for r in list(range(5)):
+    for model_name in ["answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+        for mode in ["a"]:#,"c","d"]:
+            for r in list(range(2)):
                 model_save_addr = f"{cwd}/models/{mode}/mhead"
                 dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
@@ -341,7 +342,7 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    '''
+    
 
 if __name__=="__main__":
     main()

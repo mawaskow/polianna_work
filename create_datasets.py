@@ -26,13 +26,112 @@ def df_loading(pol_dir, col_sel=["Policy","Text","Tokens","Curation"]):
 
 def get_label_set(mode, method):
     if mode == "a": 
-        labels = ["Actor", "InstrumentType", "Objective", "Resource", "Time"]
+        labels = ["Actor", 
+            "InstrumentType", 
+            "Objective", 
+            "Resource", 
+            "Time"
+            ]
     elif mode == "b":
-        labels = ["Policydesigncharacteristics", "Technologyandapplicationspecificity", "Instrumenttypes"]
+        labels = ['Addressee_default',
+            'Addressee_monitored',
+            'Addressee_resource',
+            'Addressee_sector',
+            'Authority_default',
+            'Authority_established',
+            'Authority_legislative',
+            'Authority_monitoring',
+            'Edu_Outreach',
+            'Form_monitoring',
+            'Form_sanctioning',
+            'FrameworkPolicy',
+            'Objective_QualIntention',
+            'Objective_QualIntention_noCCM',
+            'Objective_QuantTarget',
+            'Objective_QuantTarget_noCCM',
+            'PublicInvt',
+            'RD_D',
+            'Ref_OtherPolicy',
+            'Ref_PolicyAmended',
+            'Ref_Strategy_Agreement',
+            'RegulatoryInstr',
+            'Resource_MonRevenues',
+            'Resource_MonSpending',
+            'Resource_Other',
+            'Reversibility_policy',
+            'Subsidies_Incentives',
+            'TaxIncentives',
+            'Time_Compliance',
+            'Time_InEffect',
+            'Time_Monitoring',
+            'Time_PolDuration',
+            'Time_Resources',
+            'TradablePermit',
+            'Unspecified',
+            'VoluntaryAgrmt'
+        ] 
     elif mode == "c": 
-        labels = ["Actor", "InstrumentType", "TechnologySpecificity", "EnergySpecificity", "Compliance", "ApplicationSpecificity", "Reference", "Objective", "Time", "Resource"]
+        labels = ["Policydesigncharacteristics", 
+            "Technologyandapplicationspecificity", 
+            "Instrumenttypes"
+            ]
     elif mode == "d":
-        labels = ["Actor", "InstrumentType", "Objective"]
+        labels = ['Actor',
+            'ApplicationSpecificity',
+            'Compliance',
+            'EnergySpecificity',
+            'InstrumentType',
+            'Objective',
+            'Reference',
+            'Resource',
+            'Reversibility',
+            'TechnologySpecificity',
+            'Time'
+        ]
+    elif mode == "e":
+        labels = ['Addressee_default',
+            'Addressee_monitored',
+            'Addressee_resource',
+            'Addressee_sector',
+            'App_LowCarbon',
+            'App_Other',
+            'Authority_default',
+            'Authority_established',
+            'Authority_legislative',
+            'Authority_monitoring',
+            'Edu_Outreach',
+            'Energy_LowCarbon',
+            'Energy_Other',
+            'Form_monitoring',
+            'Form_sanctioning',
+            'FrameworkPolicy',
+            'Objective_QualIntention',
+            'Objective_QualIntention_noCCM',
+            'Objective_QuantTarget',
+            'Objective_QuantTarget_noCCM',
+            'PublicInvt',
+            'RD_D',
+            'Ref_OtherPolicy',
+            'Ref_PolicyAmended',
+            'Ref_Strategy_Agreement',
+            'RegulatoryInstr',
+            'Resource_MonRevenues',
+            'Resource_MonSpending',
+            'Resource_Other',
+            'Reversibility_policy',
+            'Subsidies_Incentives',
+            'TaxIncentives',
+            'Tech_LowCarbon',
+            'Tech_Other',
+            'Time_Compliance',
+            'Time_InEffect',
+            'Time_Monitoring',
+            'Time_PolDuration',
+            'Time_Resources',
+            'TradablePermit',
+            'Unspecified',
+            'VoluntaryAgrmt'
+        ] 
     if method == "sghead":
         bio_labels = ["O"]
         for l in sorted(labels):
@@ -41,6 +140,54 @@ def get_label_set(mode, method):
         return bio_labels
     elif method == "mhead":
         return labels
+
+def identify_dup_spans(df, mode):
+    '''
+    Identifies the duplicate spans (at feature/layer level) in the dataset for each token
+    Returns a set of the relevant span ids (of spans which are contained by other spans of the same feature/layer)
+    
+    :param df: Description
+    :param mode: Description
+    '''
+    lbl_set = get_label_set(mode, "mhead")
+    dup_ent_ids = []
+    for art in df.index:
+        for tokensp in df.loc[art, "Tokens"]:
+            sc = tokensp.get_token_spans(annotators ='Curation')
+            if sc:
+                if len(sc)>1:
+                    track = []
+                    for s in sc:
+                        if mode in ["c"]:
+                            track.append((s.span_id, s.text, s.layer))
+                        elif mode in ["a","d"]:
+                            if s.feature in lbl_set:
+                                track.append((s.span_id, s.text, s.feature))
+                    # looping through the ids and texts of all the spans for that one token
+                    track = sorted(track, key=lambda tup: len(tup[1]), reverse=True)
+                    for idx, text, ent in track:
+                        for idx2, text2, ent2 in track:
+                            if idx!=idx2:
+                                # if span includes another span at this token
+                                if text2 in text:
+                                    # and if they DO have the same layer
+                                    if ent==ent2:
+                                        # then add to dup span ids
+                                        dup_ent_ids.append(idx2)
+    return list(set(dup_ent_ids))
+
+def deduped_df_fxn(df, mode):
+    '''
+    Returns an updated df with duplicate spans removed
+    
+    :param df: Description
+    :param mode: Description
+    '''
+    df2 = df.copy()
+    id_set = identify_dup_spans(df2, mode)
+    for art in df2.index:
+        df2.loc[art, "Curation"] = list(filter(lambda span: span.span_id not in id_set, df2.loc[art, "Curation"]))
+    return df2
 
 def span_to_sghead_lbls(mode, tokens, spans):
     '''
@@ -54,7 +201,7 @@ def span_to_sghead_lbls(mode, tokens, spans):
     '''
     token_labels = ["O"] * len(tokens)
     for spn in spans:
-        if mode in ["a", "c", "d"]:
+        if mode in ["a","d"]:
             ftr_lst = get_label_set(mode, "mhead")
             ftr = spn.feature
             if ftr in ftr_lst:
@@ -71,7 +218,7 @@ def span_to_sghead_lbls(mode, tokens, spans):
                     token_labels[inside_tokens[0]] = f"B-{ftr}"
                     for i in inside_tokens[1:]:
                         token_labels[i] = f"I-{ftr}"
-        elif mode == "b":
+        elif mode in ["c"]:
             lyr = spn.layer
             start_char = spn.start
             end_char = spn.stop
@@ -86,6 +233,23 @@ def span_to_sghead_lbls(mode, tokens, spans):
                 token_labels[inside_tokens[0]] = f"B-{lyr}"
                 for i in inside_tokens[1:]:
                     token_labels[i] = f"I-{lyr}"
+        elif mode in ["b","e"]:
+            tag_lst = get_label_set(mode, "mhead")
+            tag = spn.tag
+            if tag in tag_lst:
+                start_char = spn.start
+                end_char = spn.stop
+                inside_tokens = []
+                for i, tok in enumerate(tokens):
+                    tok_start = tok.start
+                    tok_end = tok.stop
+                    overlap = not (tok_end <= start_char or tok_start >= end_char)
+                    if overlap:
+                        inside_tokens.append(i)
+                if inside_tokens:
+                    token_labels[inside_tokens[0]] = f"B-{tag}"
+                    for i in inside_tokens[1:]:
+                        token_labels[i] = f"I-{tag}"
     return token_labels
 
 def span_to_mhead_lbls(mode, name, tokens, spans):
@@ -101,7 +265,7 @@ def span_to_mhead_lbls(mode, name, tokens, spans):
     '''
     token_labels = ["O"] * len(tokens)
     for spn in spans:
-        if mode in ["a", "c", "d"]:
+        if mode in ["a","d"]:
             if spn.feature == name:
                 start_char = spn.start
                 end_char = spn.stop
@@ -116,8 +280,23 @@ def span_to_mhead_lbls(mode, name, tokens, spans):
                     token_labels[inside_tokens[0]] = f"B"
                     for i in inside_tokens[1:]:
                         token_labels[i] = f"I"
-        elif mode == "b":
+        elif mode in ["c"]:
             if spn.layer == name:
+                start_char = spn.start
+                end_char = spn.stop
+                inside_tokens = []
+                for i, tok in enumerate(tokens):
+                    tok_start = tok.start
+                    tok_end = tok.stop
+                    overlap = not (tok_end <= start_char or tok_start >= end_char)
+                    if overlap:
+                        inside_tokens.append(i)
+                if inside_tokens:
+                    token_labels[inside_tokens[0]] = f"B"
+                    for i in inside_tokens[1:]:
+                        token_labels[i] = f"I"
+        elif mode in ["b","e"]:
+            if spn.tag == name:
                 start_char = spn.start
                 end_char = spn.stop
                 inside_tokens = []
@@ -135,9 +314,10 @@ def span_to_mhead_lbls(mode, name, tokens, spans):
 
 def df_to_ds(mode, htype, df):
     '''
-    Converts pandas dataframe to huggingface dataset
+    Converts the original polianna dataframe to huggingface dataset
     :param df: POLIANNA dataframe
     '''
+    df = deduped_df_fxn(df, mode)
     lbl_lst = get_label_set(mode, "mhead") # this variable is only used in mhead anyways
     datapoints = []
     for artid in df.index:
@@ -194,14 +374,14 @@ def main():
     cwd = os.getcwd()
     pol_dir = cwd+"/src/d01_data"
     ### creates whole sghead and mhead datasets from original POLIANNA database
-    for mode in ["a", "b", "c", "d"]:
+    for mode in ["a","b", "c", "d", "e"]:
         print(mode)
         create_ds(mode,"sghead", pol_dir, cwd+f"/inputs/{mode}/sghead_ds/")
         create_ds(mode, "mhead", pol_dir, cwd+f"/inputs/{mode}/mhead_ds")
         print(f"Made {mode} datasets")
     print("Made datasets")
     ### creates the dataset dictionaries for each r split from the sghead and mhead datasets
-    for mode in ["a", "b", "c", "d"]:
+    for mode in ["a","b", "c", "d", "e"]:
         print(mode)
         sghead_ds = load_from_disk(cwd+f"/inputs/{mode}/sghead_ds")
         create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/sghead_dsdcts", list(range(5)))

@@ -129,7 +129,8 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
             "weight_decay": 0.01,
             "batch_size":16,
             "num_warmup_steps":0,
-            "patience": 3
+            "patience": 3,
+            "max_length": 512
         }
     label2id = {l: i for i, l in enumerate(label_list)}
     id2label = {i: l for i, l in enumerate(label_list)}
@@ -138,8 +139,8 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
         tokenizer.pad_token = tokenizer.eos_token
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
     if model_name == "answerdotai/ModernBERT-base":
-        train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id, max_length=2048)
-        dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id, max_length=2048)
+        train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id, max_length=params['max_length'])
+        dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id, max_length=params['max_length'])
     else:
         train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id)
         dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id)
@@ -221,7 +222,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
 
 def main():
     cwd = os.getcwd()
-    
+    '''
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/sghead"
@@ -232,7 +233,7 @@ def main():
         r = 0
         params = {
             "num_epochs": 25,
-            "lr": 3e-5,
+            "lr": 2e-5, #3e-5, also try 5e-5
             "weight_decay": 0.01,
             "batch_size":16,
             "num_warmup_steps":0,
@@ -242,8 +243,8 @@ def main():
     '''
     ########### subprocess ###########
     for model_name in ["answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
-        for mode in ["a", "b"]: #c,d
-            for r in list(range(5)):
+        for mode in ["a"]: #c,d
+            for r in list(range(2)):
                 model_save_addr = f"{cwd}/models/{mode}/sghead"
                 dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
@@ -260,6 +261,6 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    '''
+    
 if __name__=="__main__":
     main()
