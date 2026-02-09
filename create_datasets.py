@@ -184,6 +184,10 @@ def deduped_df_fxn(df, mode):
     :param mode: Description
     '''
     df2 = df.copy()
+    # remove irrelevant articles
+    removal = [code for code in list(df2.index) if code.split("_")[-1] in ["front", "Whereas"]]  
+    df2 = df2.drop(removal, axis=0)
+    # remove duplicate spans
     id_set = identify_dup_spans(df2, mode)
     for art in df2.index:
         df2.loc[art, "Curation"] = list(filter(lambda span: span.span_id not in id_set, df2.loc[art, "Curation"]))

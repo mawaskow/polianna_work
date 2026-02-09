@@ -292,8 +292,14 @@ def extract_results(mode, metrics_dct, htype, eval_type):
     if eval_type == "seqeval":
         if htype =="sghead":
             for lbl in label_list:
-                for mtr in list(metrics_dct[lbl]):
-                    results_dict[lbl][mtr] = metrics_dct[lbl][mtr]
+                try:
+                    for mtr in list(metrics_dct[lbl]):
+                        results_dict[lbl][mtr] = metrics_dct[lbl][mtr]
+                except Exception as e:
+                    print(e)
+                    for mtr in ["precision","recall","f1","number"]:
+                        results_dict[lbl][mtr] = 0
+
         elif htype == "mhead":
             for lbl in label_list:
                 try:
@@ -474,15 +480,15 @@ def main():
     cwd = os.getcwd()
     results_dir = f"{cwd}/results"
     # get_results > prettify_results > consolidate_models > display_mdlrpt
-    what_to_do = "get_results"#"display_mdlrpt"#"consolidate_models"#"prettify_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
+    what_to_do = "display_mdlrpt"#"consolidate_models"#"prettify_results"#"get_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
     ######################################################
     if what_to_do == "get_results":
         for htype in ['mhead']:#, 'mhead']:
-            for mode in ["a"]:#,"b"]:#,"c","d"]:
+            for mode in ["a","b"]:#,"c","d"]:#,"e"]:
                 dsdcts_dir = f"{cwd}/inputs/{mode}/{htype}_dsdcts"
                 models_dir = f"{cwd}/models/{mode}/{htype}"
-                for model_name in ["answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
-                    for r in list(range(2)):
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]: #["answerdotai/ModernBERT-base"]
+                    for r in list(range(5)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
                         metrics, preds, reals = evaluate_model(mode, htype, model_name, models_dir, dsdcts_dir, r)
                         with open(f"{results_dir}/{mode}/{htype}/metrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
@@ -492,9 +498,9 @@ def main():
                         with open(f"{results_dir}/{mode}/{htype}/randp_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(randp, f, indent=4)
     elif what_to_do == "prettify_results":
-        for htype in ['sghead', 'mhead']:
-            for mode in ["a","b"]:#,"c","d"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+        for htype in ['mhead']:#, 'mhead']:
+            for mode in ["a","b"]:#,"c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:#, "answerdotai/ModernBERT-base"]:
                     for r in list(range(5)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
                         with open(f"{results_dir}/{mode}/{htype}/metrics_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
@@ -505,12 +511,13 @@ def main():
                             report = make_run_report(mode, htype, metrics, randp, "seqeval")
                             with open(f"{results_dir}/{mode}/{htype}/report_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                                 json.dump(report, f, indent=4)
-                        except:
+                        except Exception as e:
                             print(f"{htype} {mode} {model_name} {r} FAILED")
+                            print(e)
     elif what_to_do == "consolidate_models":
-        for htype in ['sghead', 'mhead']:
-            for mode in ["a","b"]:#,"c","d"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+        for htype in ['mhead']:#, 'mhead']:
+            for mode in ["a","b"]:#,"c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:#, "answerdotai/ModernBERT-base"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
                     results_file_prefix = f"{results_dir}/{mode}/{htype}/report_{model_name.split('/')[-1]}_"
                     r_lst = list(range(5))
@@ -518,9 +525,9 @@ def main():
                     with open(f"{results_dir}/{mode}/{htype}/model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
                         json.dump(report, f, indent=4)
     elif what_to_do == "display_mdlrpt":
-        for htype in ["sghead", 'mhead']:
-            for mode in ["b"]:#,"b"]:#,"c","d"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+        for htype in ["mhead"]:#, 'mhead']:
+            for mode in ["b"]:#,"b","c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:#, "answerdotai/ModernBERT-base"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
                     with open(f"{results_dir}/{mode}/{htype}/model_report_{model_name.split('/')[-1]}.json","r", encoding="utf-8") as f:
                         model_report = json.load(f)

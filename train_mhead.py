@@ -8,13 +8,13 @@ from create_datasets import get_label_set
 
 params = {
     "num_epochs": 25,
-    "lr": 5e-5,#2e-5,#3e-5,
+    "lr": 3e-5,#5e-5,#2e-5,#3e-5,
     "weight_decay": 0.01,
     "batch_size":16,
     "num_warmup_steps":0,
     "patience": 5,
     "dropout": 0.1,
-    "max_length": 2048
+    "max_length": 512
 }
 
 if __name__ == '__main__':

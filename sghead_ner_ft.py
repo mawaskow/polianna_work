@@ -242,9 +242,9 @@ def main():
         finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
     '''
     ########### subprocess ###########
-    for model_name in ["answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
-        for mode in ["a"]: #c,d
-            for r in list(range(2)):
+    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# ["answerdotai/ModernBERT-base"]:#
+        for mode in ["a","b","c","d","e"]:
+            for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/sghead"
                 dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
