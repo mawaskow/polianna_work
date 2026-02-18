@@ -7,6 +7,8 @@ from collections import Counter
 from transformers import AutoModel, AutoConfig, AutoTokenizer, AutoModelForTokenClassification, get_linear_schedule_with_warmup, PreTrainedModel
 from transformers import AutoTokenizer, Trainer
 from transformers.modeling_outputs import TokenClassifierOutput
+from peft import LoraConfig, get_peft_model
+import bitsandbytes as bnb
 from datasets import DatasetDict
 import torch
 import torch.nn as nn
@@ -68,11 +70,38 @@ class MheadDataset(Dataset):
     def __getitem__(self, idx):
         return self.items[idx]
 
+BNB_CONFIG = {
+    "load_in_4bit": True,
+    "bnb_4bit_quant_type": "nf4",
+    "bnb_4bit_compute_dtype": torch.bfloat16,
+    "bnb_4bit_use_double_quant": True,
+}
+TARGET_MODULES_DICT={
+    "microsoft/deberta-v3-base":["query_proj","key_proj","value_proj","dense"],
+    "FacebookAI/xlm-roberta-base":["query","key","value","dense"],
+    "dslim/bert-base-NER-uncased":["query","key","value","dense"],
+    "answerdotai/ModernBERT-base":["attn.Wqkv","attn.Wo","mlp.Wi","mlp.Wo"]
+}
+
 class MheadTokenClassifier(nn.Module):
     def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1):
         super().__init__()
         self.model_name = base_model_name
-        self.encoder = AutoModel.from_pretrained(base_model_name) #ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
+        #self.encoder = AutoModel.from_pretrained(base_model_name) #ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
+        # quantize
+        self.encoder = AutoModel.from_pretrained(base_model_name,**BNB_CONFIG)
+        # lora
+        lora_cfg = LoraConfig(
+            r=9,
+            lora_alpha=32,
+            lora_dropout=0.01,
+            bias="none",
+            target_modules=TARGET_MODULES_DICT[base_model_name],
+            task_type="TOKEN_CLS"
+        )
+        self.encoder = get_peft_model(self.encoder, lora_cfg)
+        #self.encoder.print_trainable_parameters()
+        # end qlora
         hidden_size = self.encoder.config.hidden_size
         self.heads = head_lst
         self.num_labels = num_labels
@@ -295,6 +324,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     del tokenizer
     torch.cuda.empty_cache()
     gc.collect()
+    return metrics
     
 ########
 # main #

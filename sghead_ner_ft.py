@@ -2,7 +2,8 @@
 Normal token classification model training 
 '''
 import os
-from transformers import AutoTokenizer, AutoModelForTokenClassification, get_linear_schedule_with_warmup
+from transformers import AutoTokenizer, AutoModelForTokenClassification, get_linear_schedule_with_warmup, BitsAndBytesConfig
+from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model
 from datasets import DatasetDict
 import evaluate
 import numpy as np
@@ -110,6 +111,13 @@ def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     return metrics
 
+TARGET_MODULES_DICT={
+    "microsoft/deberta-v3-base":["query_proj","key_proj","value_proj","dense"],
+    "FacebookAI/xlm-roberta-base":["query","key","value","dense"],
+    "dslim/bert-base-NER-uncased":["query","key","value","dense"],
+    "answerdotai/ModernBERT-base":["attn.Wqkv","attn.Wo","mlp.Wi","mlp.Wo"]
+}
+
 def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params = None):
     '''
     Docstring for finetune_sghead_model
@@ -157,13 +165,32 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
         collate_fn=lambda b: sghead_collate(b, tokenizer.pad_token_id)
     )
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # incorporating QLoRA
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
     model = AutoModelForTokenClassification.from_pretrained(
         model_name,
         num_labels=len(label_list),
         id2label=id2label,
         label2id=label2id,
+        quantization_config=bnb_config,
         ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
     ).to(dev)
+    model = prepare_model_for_kbit_training(model)
+    lora_config = LoraConfig(
+        r=9,
+        lora_alpha=32,
+        target_modules=TARGET_MODULES_DICT[model_name],
+        lora_dropout=0.1,
+        bias="none",
+        task_type="TOKEN_CLS"
+    )
+    model = get_peft_model(model, lora_config)
+    # end qlora
     optimizer = torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
     num_training_steps = params["num_epochs"] * len(train_loader)
     scheduler = get_linear_schedule_with_warmup(
@@ -215,6 +242,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     del tokenizer
     torch.cuda.empty_cache()
     gc.collect()
+    return metrics
 
 ########
 # main #
@@ -222,22 +250,23 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
 
 def main():
     cwd = os.getcwd()
-    '''
+    
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/sghead"
         dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
         label_list = get_label_set(mode, "sghead")
         #
-        model_name = "answerdotai/ModernBERT-base"
+        model_name = "microsoft/deberta-v3-base"
         r = 0
         params = {
-            "num_epochs": 25,
-            "lr": 2e-5, #3e-5, also try 5e-5
+            "num_epochs": 15,
+            "lr": 3e-5, #3e-5, also try 5e-5
             "weight_decay": 0.01,
             "batch_size":16,
             "num_warmup_steps":0,
-            "patience": 5
+            "patience": 5,
+            "max_length": 512
             }
         finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
     '''
@@ -261,6 +290,6 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    
+    '''
 if __name__=="__main__":
     main()
