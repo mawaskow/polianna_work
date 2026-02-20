@@ -145,7 +145,9 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
+    #dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
+    # CHANGED FOR HYPERPARAMETER TUNING ONLY
+    dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_{r}")
     if model_name == "answerdotai/ModernBERT-base":
         train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id, max_length=params['max_length'])
         dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id, max_length=params['max_length'])
@@ -170,7 +172,8 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
         load_in_4bit=True,
         bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        llm_int8_skip_modules=["classifier"]
     )
     model = AutoModelForTokenClassification.from_pretrained(
         model_name,
@@ -178,18 +181,25 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
         id2label=id2label,
         label2id=label2id,
         quantization_config=bnb_config,
-        ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
-    ).to(dev)
+        ignore_mismatched_sizes=(model_name == "dslim/bert-base-NER-uncased"),
+        device_map="auto"
+    )
     model = prepare_model_for_kbit_training(model)
+    #if hasattr(model, "classifier"):
+    #    model.classifier.to(torch.float32) #force cast to avoid bitsandbytes error??
+    model.classifier.to(dtype=torch.float32, device=dev)
     lora_config = LoraConfig(
         r=9,
         lora_alpha=32,
         target_modules=TARGET_MODULES_DICT[model_name],
         lora_dropout=0.1,
         bias="none",
-        task_type="TOKEN_CLS"
+        task_type="TOKEN_CLS",
+        modules_to_save=["classifier"]
     )
     model = get_peft_model(model, lora_config)
+    model.config.use_cache = False
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     # end qlora
     optimizer = torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
     num_training_steps = params["num_epochs"] * len(train_loader)
@@ -200,6 +210,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     )
     # adding early stopping
     best_eval_loss = float("inf")
+    best_epoch_metrics = {}
     epochs_no_improvement = 0
     model_epoch = 0
     for epoch in range(params["num_epochs"]):
@@ -219,6 +230,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
         print(f"Epoch {epoch+1} | Train Loss: {avg_train_loss:.4f} | Eval Loss: {metrics['avg_eval_loss']:.4f} | Precision: {metrics['overall_precision']:.4f} | Recall: {metrics['overall_recall']:.4f} | F1: {metrics['overall_f1']:.4f}")
         if metrics['avg_eval_loss'] < best_eval_loss:
             best_eval_loss = metrics['avg_eval_loss']
+            best_epoch_metrics = metrics
             model_epoch = epoch
             epochs_no_improvement = 0
             save_path = f"{model_save_addr}/{model_name.split('/')[-1]}_{r}"
@@ -229,12 +241,12 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
             if epochs_no_improvement >= params['patience']:
                 print(f"Early stopping triggered after {epoch+1} epochs.")
                 break
-    metrics['epoch_saved'] = model_epoch
-    metrics['time_min'] = round((time.time()-st)/60,2)
-    print(metrics)
+    best_epoch_metrics['epoch_saved'] = model_epoch
+    best_epoch_metrics['time_min'] = round((time.time()-st)/60,2)
+    print(best_epoch_metrics)
     with open(f"{model_save_addr}/{model_name.split('/')[-1]}_{r}/params.json", "w", encoding="utf-8") as f:
         json.dump(params, f, ensure_ascii=False, indent=4)
-    metrics_clean = convert_numpy_torch_to_python(metrics)
+    metrics_clean = convert_numpy_torch_to_python(best_epoch_metrics)
     with open(f"{model_save_addr}/{model_name.split('/')[-1]}_{r}/metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics_clean, f, ensure_ascii=False, indent=4)
     # cleanup
@@ -242,7 +254,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     del tokenizer
     torch.cuda.empty_cache()
     gc.collect()
-    return metrics
+    return best_epoch_metrics
 
 ########
 # main #

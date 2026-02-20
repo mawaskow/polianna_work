@@ -15,6 +15,66 @@ from datasets import Dataset, DatasetDict, load_from_disk
 # functions #
 #############
 
+ORIG_SPAN_WEIGHTS = {'Instrumenttypes': 0.16719409282700423,
+ 'Policydesigncharacteristics': 0.5456463367855773,
+ 'Technologyandapplicationspecificity': 0.28715957038741846,
+ 'InstrumentType': 0.16244725738396623,
+ 'Actor': 0.28869390103567316,
+ 'Time': 0.038262370540851555,
+ 'Compliance': 0.08769658611430764,
+ 'Reversibility': 0.0019179133103183737,
+ 'Reference': 0.05662639048714998,
+ 'Objective': 0.04756425009589567,
+ 'ApplicationSpecificity': 0.07431914077483698,
+ 'EnergySpecificity': 0.09148446490218642,
+ 'TechnologySpecificity': 0.1211162255466053,
+ 'InstrumentType_2': 0.0046988876102800154,
+ 'Resource': 0.02450134253931722,
+ 'end': 0.0006712696586114307,
+ 'Unspecified': 0.052742616033755275,
+ 'Authority_legislative': 0.015822784810126583,
+ 'Time_PolDuration': 0.0020138089758342925,
+ 'Time_InEffect': 0.005226313770617568,
+ 'Authority_monitoring': 0.03159762178749521,
+ 'Form_monitoring': 0.08539509014192559,
+ 'Time_Monitoring': 0.015487149980820868,
+ 'Reversibility_policy': 0.0019179133103183737,
+ 'Authority_default': 0.04502301495972382,
+ 'Ref_Strategy_Agreement': 0.01529535864978903,
+ 'Addressee_default': 0.09977943996931339,
+ 'Edu_Outreach': 0.015774836977368624,
+ 'RegulatoryInstr': 0.05902378212504795,
+ 'Ref_OtherPolicy': 0.03533755274261603,
+ 'Time_Compliance': 0.014863828154967396,
+ 'Addressee_sector': 0.06501726121979287,
+ 'Addressee_monitored': 0.023158803222094362,
+ 'Objective_QualIntention': 0.026658995013425394,
+ 'App_Other': 0.03768699654775604,
+ 'Energy_Other': 0.026371308016877638,
+ 'App_LowCarbon': 0.036632144227080936,
+ 'Tech_Other': 0.05072880705792098,
+ 'Energy_LowCarbon': 0.06511315688530879,
+ 'Tech_LowCarbon': 0.07038741848868431,
+ 'Subsidies_Incentives': 0.004890678941311853,
+ 'Addressee_resource': 0.006808592251630227,
+ 'Ref_PolicyAmended': 0.005993479094744917,
+ 'FrameworkPolicy': 0.01524741081703107,
+ 'TaxIncentives': 0.0037399309551208286,
+ 'VoluntaryAgrmt': 0.0034522439585730723,
+ 'Objective_QuantTarget': 0.0077675489067894135,
+ 'Resource_MonSpending': 0.005418105101649405,
+ 'Form_sanctioning': 0.0023014959723820483,
+ 'Resource_Other': 0.01735711545838128,
+ 'PublicInvt': 0.0046988876102800154,
+ 'Objective_QualIntention_noCCM': 0.012754123513617184,
+ 'RD_D': 0.0005753739930955121,
+ 'Objective_QuantTarget_noCCM': 0.0003835826620636747,
+ 'Resource_MonRevenues': 0.0017261219792865361,
+ 'TradablePermit': 0.007000383582662063,
+ '': 0.0006712696586114307,
+ 'Time_Resources': 0.0006712696586114307,
+ 'Authority_established': 0.0014863828154967396}
+
 def df_loading(pol_dir, col_sel=["Policy","Text","Tokens","Curation"]):
     '''
     Function that loads dataframe from POLIANNA pkl
@@ -370,6 +430,12 @@ def create_dsdcts(dataset, dsdct_dir, r_list=[0]):
         ds_dct.save_to_disk(f"{dsdct_dir}/dsdct_r{r}")
     print(f"Created {len(r_list)} dataset(s) in {dsdct_dir}")
 
+def create_hyptune_dsdct(dataset, dsdct_dir):
+    train_dev = dataset.train_test_split(test_size=0.2, seed=9)
+    ds_dct = DatasetDict({"train":train_dev['train'], "dev":train_dev['test']})
+    ds_dct.save_to_disk(f"{dsdct_dir}/dsdct_hyptune")
+    print(f"Created hyptune dataset in {dsdct_dir}")
+
 ########
 # main #
 ########
@@ -377,6 +443,7 @@ def create_dsdcts(dataset, dsdct_dir, r_list=[0]):
 def main():
     cwd = os.getcwd()
     pol_dir = cwd+"/src/d01_data"
+    '''
     ### creates whole sghead and mhead datasets from original POLIANNA database
     for mode in ["a","b", "c", "d", "e"]:
         print(mode)
@@ -391,6 +458,17 @@ def main():
         create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/sghead_dsdcts", list(range(5)))
         mhead_ds = load_from_disk(cwd+f"/inputs/{mode}/mhead_ds")
         create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/mhead_dsdcts", list(range(5)))
+        print(f"Made {mode} dsdcts")
+    print("Made datasetdcts")
+    #### for hyperparameter tuning only
+    '''
+    
+    for mode in ["a","b", "c", "d", "e"]:
+        print(mode)
+        sghead_ds = load_from_disk(cwd+f"/inputs/{mode}/sghead_ds")
+        create_hyptune_dsdct(sghead_ds, cwd+f"/inputs/{mode}/sghead_dsdcts")
+        mhead_ds = load_from_disk(cwd+f"/inputs/{mode}/mhead_ds")
+        create_hyptune_dsdct(mhead_ds, cwd+f"/inputs/{mode}/mhead_dsdcts")
         print(f"Made {mode} dsdcts")
     print("Made datasetdcts")
 

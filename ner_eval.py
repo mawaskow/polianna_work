@@ -68,63 +68,6 @@ def evaluate_model(mode, htype, model_name, model_save_addr, dsdct_dir, r, batch
 
 #all_preds, all_labels, all_inputids
 
-################## sghead seqeval #############################
-
-def visualize_run_sghead_seqeval_results(mode, eval, model_name, r, results_dir, idas=[0]):
-    '''
-    Currently just for sghead and seqeval
-    For each ida (test set entity integer), for each token in the test set entity,
-    prints the token next to the prediction next to the label
-    For error evaluation
-    
-    :param mode: sghead or mhead
-    :param eval: seqeval or token micro f1
-    :param model_name: huggingface model name
-    :param r: which model run to look at
-    :param results_dir: directory where results files are saved
-    :param idas: list of test set entity integers to examine
-    '''
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    with open(f"{results_dir}/{mode}/{eval}_{model_name.split('/')[-1]}_{r}_pandr.json", "r", encoding="utf-8") as f:
-        pandr = json.load(f)
-    for ida in idas:
-        tokens = tokenizer.convert_ids_to_tokens(pandr['input_ids'][ida])[1:-1]
-        print(len(tokens),len(pandr['pred'][ida]), len(pandr['real'][ida]))
-        for idx, tok in enumerate(tokens):
-            print(f"{idx:03} | {tok:16} | "
-                f"P:{pandr['pred'][ida][idx]:16}  "
-                f"R:{pandr['real'][ida][idx]:16}  ")
-
-def consol_sghead_seqeval_results(model_names=["microsoft/deberta-v3-base", "dslim/bert-base-NER-uncased"], r_vals=[0,1], results_dir="./"):
-    '''
-    Given the list of model names and r values, reads the results files and consolidates into a single results file
-    
-    :param model_names: list of model names whose results it will examine
-    :param r_vals: list of r values for those model runs which it will examine
-    :param results_dir: directory address where the results files are stored
-    '''
-    results_dict = {name:{} for name in model_names}
-    for model_name in list(results_dict):
-        results_dict[model_name]["Overall"] = {"precision":[], "recall":[], "f1":[], "accuracy":[]}
-        for ftr in ["Actor", "InstrumentType", "Objective", "Resource", "Time"]:
-            results_dict[model_name][ftr] = {"precision":[], "recall":[], "f1":[], "number":[]}
-    for model_name in model_names:
-        for r in r_vals:
-            with open(f"{results_dir}/seqeval_{model_name.split('/')[-1]}_{r}_results.json","r", encoding="utf-8") as f:
-                results = json.load(f)
-            for k in list(results):
-                if k[:4]=="over":
-                    x, metric = k.split("_")
-                    results_dict[model_name]['Overall'][metric].append(float(results[k][0]))
-                else:
-                    for mtr in list(results[k]):
-                        results_dict[model_name][k][mtr].append(float(results[k][mtr][0]))
-    with open(f"{results_dir}/seqeval_results.json","w", encoding="utf-8") as f:
-        json.dump(results_dict, f, indent=4)
-    return results_dict
-
-############################# mhead tokf1
-
 def tokf1_calc(htype, randp):
     if htype == "sghead":
         all_reals = []
@@ -158,63 +101,6 @@ def tokf1_calc(htype, randp):
             }
         return scores_dct
 
-def tokf1_for_mhead(predictions_dct, labels_dct):
-    '''
-    Helper function for get_mhead_tokf1
-    Generates results dictionary for provided preds and labels for tokf1 on mhead model
-    
-    :param predictions: dict of lists of lists of predictions of labels for each test entry for each featurename
-    :param labels: dict of lists of lists of labels for each test entry for each featurename
-    '''
-    results = {}
-    # for each head
-    for head_name, preds_lists in predictions_dct.items():
-        labels_lists = labels_dct[head_name] # size (batch, seq_len)
-        labels_flat = [lbl for lbl_lst in labels_lists for lbl in lbl_lst]
-        preds_flat = [pred for pred_lst in preds_lists for pred in pred_lst]
-        # micro F1
-        f1 = f1_score(labels_flat, preds_flat, average='micro') # pretty sure this is redundant
-        clsf_rpt = classification_report(labels_flat, preds_flat, output_dict=True)
-        results[f"{head_name}"] = clsf_rpt
-        results[f"{head_name}"]["micro_f1"] = f1
-    return results
-
-def visualize_run_mhead_tokf1_results(mode, eval, model_name, r, results_dir, idas=[0]):
-    '''
-    Currently just for sghead and seqeval
-    For each ida (test set entity integer), for each token in the test set entity,
-    prints the token next to the prediction next to the label
-    For error evaluation
-    
-    :param mode: sghead or mhead
-    :param eval: seqeval or token micro f1
-    :param model_name: huggingface model name
-    :param r: which model run to look at
-    :param results_dir: directory where results files are saved
-    :param idas: list of test set entity integers to examine
-    '''
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    with open(f"{results_dir}/{mode}/{eval}_{model_name.split('/')[-1]}_{r}_pandr.json", "r", encoding="utf-8") as f:
-        pandr = json.load(f)
-    for ida in idas:
-        tokens = tokenizer.convert_ids_to_tokens(pandr['input_ids'][ida])[1:-1]
-        #print(len(tokens),len(pandr['pred'][head][ida]), len(pandr['real'][head][ida]))
-        for idx, tok in enumerate(tokens):
-            try:
-                print(f"{idx:03} | {tok:16} | "
-                    f"| {pandr['real']['Actor'][ida][idx]:1}  "
-                    f"{pandr['pred']['Actor'][ida][idx]:1}  "
-                    f"| {pandr['real']['InstrumentType'][ida][idx]:1}  "
-                    f"{pandr['pred']['InstrumentType'][ida][idx]:1}  "
-                    f"| {pandr['real']['Objective'][ida][idx]:1}  "
-                    f"{pandr['pred']['Objective'][ida][idx]:1}  "
-                    f"| {pandr['real']['Resource'][ida][idx]:1}  "
-                    f"{pandr['pred']['Resource'][ida][idx]:1}  "
-                    f"| {pandr['real']['Time'][ida][idx]:1}  "
-                    f"{pandr['pred']['Time'][ida][idx]:1}  ")
-            except IndexError:
-                pass
-
 def shortestvis_tokf1(results_dict):
     '''
     Given *consolidated* results dictionary, prints only the rounded, averaged values across runs
@@ -230,22 +116,6 @@ def shortestvis_tokf1(results_dict):
             df.loc['sd'] = df.std()
             print(round(df.loc['mean']*100,2))
             print(round(df.loc['sd']*100,2))
-
-########################### other
-
-def df_vis_consol_sghead_seqeval(results_dict):
-    '''
-    Given *consolidated* results dictionary, prints in dataframe format
-    
-    :param results_dict: results dictionary passed from consol_sghead_seqeval_results or loaded from file
-    '''
-    for m in list(results_dict):
-        print(f"\n{m}")
-        for res in list(results_dict[m]):
-            print(f"\n{res}")
-            df = pd.DataFrame(results_dict[m][res])
-            df.loc['mean'] = df.mean()
-            print(df)
 
 def shortestvis(results_dict):
     '''
@@ -299,7 +169,6 @@ def extract_results(mode, metrics_dct, htype, eval_type):
                     print(e)
                     for mtr in ["precision","recall","f1","number"]:
                         results_dict[lbl][mtr] = 0
-
         elif htype == "mhead":
             for lbl in label_list:
                 try:

@@ -22,7 +22,7 @@ import time
 import json
 import evaluate
 import tqdm
-from create_datasets import get_label_set
+from create_datasets import get_label_set, ORIG_SPAN_WEIGHTS
 from auxil import bio_fixing, convert_numpy_torch_to_python
 
 #########################
@@ -75,6 +75,7 @@ BNB_CONFIG = {
     "bnb_4bit_quant_type": "nf4",
     "bnb_4bit_compute_dtype": torch.bfloat16,
     "bnb_4bit_use_double_quant": True,
+    "llm_int8_skip_modules": ["classifier"]
 }
 TARGET_MODULES_DICT={
     "microsoft/deberta-v3-base":["query_proj","key_proj","value_proj","dense"],
@@ -89,7 +90,7 @@ class MheadTokenClassifier(nn.Module):
         self.model_name = base_model_name
         #self.encoder = AutoModel.from_pretrained(base_model_name) #ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
         # quantize
-        self.encoder = AutoModel.from_pretrained(base_model_name,**BNB_CONFIG)
+        self.encoder = AutoModel.from_pretrained(base_model_name, quantization_config=BNB_CONFIG)
         # lora
         lora_cfg = LoraConfig(
             r=9,
@@ -109,6 +110,7 @@ class MheadTokenClassifier(nn.Module):
         self.classifiers = nn.ModuleDict({
             head: nn.Linear(hidden_size, num_labels) for head in self.heads
         })
+        self.classifiers.to(torch.float32) # want higher precision
         self.dropout = nn.Dropout(dropout)
         self.class_weights = class_wgt_dct if class_wgt_dct else {}
         self.head_weights = head_wgt_dct if head_wgt_dct else {}
@@ -118,6 +120,7 @@ class MheadTokenClassifier(nn.Module):
         # only uses last hidden state... for now
         # will look into averaging/concatenating last few hidden states
         sequence_output = outputs.last_hidden_state
+        sequence_output = sequence_output.to(torch.float32) # changes type to same as classifier heads!
         # passes encoded input sequence to each classifier to get logits
         logits = {head: self.classifiers[head](sequence_output) for head in self.classifiers}
         loss = None
@@ -169,6 +172,21 @@ def mhead_collate(batch, pad_token_id):
         "labels": {head: pad_sequence([b['labels'][head] for b in batch], batch_first=True, padding_value=-100) for head in list(batch[0]['labels'])}
     }
 
+def overall_seqeval_f1(mhead_metrics, heads):
+    head_f1s = {}
+    for head in heads:
+        try:
+            head_f1s[head] = mhead_metrics[head]["_"]["f1"]
+        except:
+            try:
+                head_f1s[head] = mhead_metrics[head]["f1"]
+            except:
+                print(f"\n\n\n\n\nISSUE!!! NO {head} f1!!! \n\n\n\n\n")
+    microf1 = 0.0
+    for head in list(head_f1s):
+        microf1+= head_f1s[head]*ORIG_SPAN_WEIGHTS[head]
+    return microf1
+
 def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     seqeval = evaluate.load("seqeval")
     model.eval()
@@ -215,6 +233,7 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
                 real_coll[head].extend(head_labels)
     for head in list(pred_coll):
         meta_metrics[head] = seqeval.compute(predictions=pred_coll[head], references=real_coll[head])
+    meta_metrics["overall_f1"] = overall_seqeval_f1(meta_metrics, heads)
     if return_rnp:
         return meta_metrics, pred_coll, real_coll
     meta_metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
@@ -248,7 +267,9 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
+    #dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
+    # UPDATING ONLY FOR HYPERPARAMETER TUNING
+    dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_{r}")
     if model_name == "answerdotai/ModernBERT-base":
         train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=params['max_length'])
         dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=params['max_length'])
@@ -280,6 +301,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     best_eval_loss = float("inf")
     epochs_no_improvement = 0
     model_epoch = 0
+    best_epoch_metrics = {}
     for epoch in range(params["num_epochs"]):
         model.train()
         total_train_loss = 0.0
@@ -302,9 +324,10 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
             total_train_loss += train_loss.item()
         avg_train_loss = total_train_loss / len(train_loader)
         metrics = mhead_evaluate_model(model, dev_loader, dev, id2label)
-        print(f"Epoch {epoch+1} | Train Loss: {avg_train_loss:.4f} | Eval Loss: {metrics['avg_eval_loss']:.4f}")
+        print(f"Epoch {epoch+1} | Train Loss: {avg_train_loss:.4f} | Eval Loss: {metrics['avg_eval_loss']:.4f} | Overall F1: {metrics['overall_f1']:.4f}")
         if metrics['avg_eval_loss'] < best_eval_loss:
             best_eval_loss = metrics['avg_eval_loss']
+            best_epoch_metrics = metrics
             model_epoch = epoch
             epochs_no_improvement = 0
             model.save_model(model, save_path, params)
@@ -313,10 +336,10 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
             if epochs_no_improvement >= params['patience']:
                 print(f"Early stopping triggered after {epoch+1} epochs.")
                 break
-    metrics['epoch_saved'] = model_epoch
-    metrics['time_min'] = round((time.time()-st)/60,2)
-    print(metrics)
-    metrics_clean = convert_numpy_torch_to_python(metrics)
+    best_epoch_metrics['epoch_saved'] = model_epoch
+    best_epoch_metrics['time_min'] = round((time.time()-st)/60,2)
+    print(best_epoch_metrics)
+    metrics_clean = convert_numpy_torch_to_python(best_epoch_metrics)
     with open(f"{save_path}/metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics_clean, f, ensure_ascii=False, indent=4)
     # cleanup
@@ -324,7 +347,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     del tokenizer
     torch.cuda.empty_cache()
     gc.collect()
-    return metrics
+    return best_epoch_metrics
     
 ########
 # main #
