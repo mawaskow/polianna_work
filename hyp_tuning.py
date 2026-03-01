@@ -7,10 +7,10 @@ import os
 def sg_objective(trial, model_name, letter):
     params = {
         "num_epochs": 30,
-        "lr": trial.suggest_float("lr", 1e-6, 9e-4, log=True),
+        "lr": trial.suggest_float("lr", 7e-6, 9e-4, log=True),
         "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.1),
         "batch_size": trial.suggest_categorical("batch_size", [8, 16, 32]),
-        "max_length": trial.suggest_categorical("max_length", [256, 512]),#, 1024, ]),
+        "max_length": trial.suggest_categorical("max_length", [256, 512]),#, 768, 1024]),
         "num_warmup_steps": 0,
         "patience": 5
     }
@@ -59,11 +59,11 @@ def main():
         for mn in ["answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# :
             print(f"\n\n\n----- Beginning optuna runs for {l} {mn} ----")
             study = optuna.create_study(directions=["minimize","maximize"])
-            #study.optimize(lambda t: sg_objective(t, mn, l), n_trials=50)
-            study.optimize(lambda t: mh_objective(t, mn, l), n_trials=50)
+            study.optimize(lambda t: sg_objective(t, mn, l), n_trials=50)
+            #study.optimize(lambda t: mh_objective(t, mn, l), n_trials=50)
             df = study.trials_dataframe()
-            #df.to_csv(f"{cwd}/results/{l}/sghead/hyptuning_{mn.split('/')[-1]}.csv")
-            df.to_csv(f"{cwd}/results/{l}/mhead/hyptuning_{mn.split('/')[-1]}.csv")
+            df.to_csv(f"{cwd}/results/{l}/sghead/hyptuning_{mn.split('/')[-1]}.csv")
+            #df.to_csv(f"{cwd}/results/{l}/mhead/hyptuning_{mn.split('/')[-1]}.csv")
             del study
             print(f"\n\n\n----- Completed optuna runs for {l} {mn} ----")
 
