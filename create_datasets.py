@@ -10,6 +10,7 @@ import json
 import pandas as pd
 import os
 from datasets import Dataset, DatasetDict, load_from_disk
+from oversampling import oversample_ds
 
 #############
 # functions #
@@ -433,8 +434,13 @@ def create_dsdcts(dataset, dsdct_dir, r_list=[0]):
 def create_hyptune_dsdct(dataset, dsdct_dir):
     train_dev = dataset.train_test_split(test_size=0.2, seed=9)
     ds_dct = DatasetDict({"train":train_dev['train'], "dev":train_dev['test']})
-    ds_dct.save_to_disk(f"{dsdct_dir}/dsdct_hyptune")
+    ds_dct.save_to_disk(f"{dsdct_dir}/dsdct_rhyptune")
     print(f"Created hyptune dataset in {dsdct_dir}")
+
+def create_oversampled_dsdcts(mode, htype, r, dsdctdir):
+    
+    oversample_ds()
+    print(0)
 
 ########
 # main #
