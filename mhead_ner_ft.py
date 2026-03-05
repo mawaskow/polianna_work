@@ -85,24 +85,27 @@ TARGET_MODULES_DICT={
 }
 
 class MheadTokenClassifier(nn.Module):
-    def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1):
+    def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1, quant=False):
         super().__init__()
         self.model_name = base_model_name
         #self.encoder = AutoModel.from_pretrained(base_model_name) #ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
-        # quantize
-        self.encoder = AutoModel.from_pretrained(base_model_name, quantization_config=BNB_CONFIG)
-        # lora
-        lora_cfg = LoraConfig(
-            r=9,
-            lora_alpha=32,
-            lora_dropout=0.01,
-            bias="none",
-            target_modules=TARGET_MODULES_DICT[base_model_name],
-            task_type="TOKEN_CLS"
-        )
-        self.encoder = get_peft_model(self.encoder, lora_cfg)
-        #self.encoder.print_trainable_parameters()
-        # end qlora
+        if quant:
+            # quantize
+            self.encoder = AutoModel.from_pretrained(base_model_name, quantization_config=BNB_CONFIG)
+            # lora
+            lora_cfg = LoraConfig(
+                r=9,
+                lora_alpha=32,
+                lora_dropout=0.01,
+                bias="none",
+                target_modules=TARGET_MODULES_DICT[base_model_name],
+                task_type="TOKEN_CLS"
+            )
+            self.encoder = get_peft_model(self.encoder, lora_cfg)
+            #self.encoder.print_trainable_parameters()
+            # end qlora
+        else:
+            self.encoder = AutoModel.from_pretrained(base_model_name)
         hidden_size = self.encoder.config.hidden_size
         self.heads = head_lst
         self.num_labels = num_labels
@@ -239,7 +242,7 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     meta_metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     return meta_metrics
 
-def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params, head_weights = None):
+def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params, extra=None):
     '''
     Docstring for finetune_mhead_model
     
@@ -260,6 +263,13 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
             "dropout": 0.1,
             "max_length": 512
         }
+    if not extra:
+        extra = {
+            "quant": False,
+            "weight": False,
+            "over": False,
+            "sent": False
+        }
     label_list = ['O', 'B', 'I']
     label2id = {l: i for i, l in enumerate(label_list)}
     id2label = {i: l for i, l in enumerate(label_list)}
@@ -268,13 +278,8 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    #dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_{r}")# UPDATING ONLY FOR HYPERPARAMETER TUNING
-    if model_name == "answerdotai/ModernBERT-base":
-        train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=params['max_length'])
-        dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=params['max_length'])
-    else:
-        train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id)
-        dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id)
+    train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=params['max_length'])
+    dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=params['max_length'])
     train_loader = DataLoader(
         train_dataset,
         batch_size=params["batch_size"],
@@ -288,7 +293,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
         collate_fn=lambda b: mhead_collate(b, tokenizer.pad_token_id)
     )
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = MheadTokenClassifier(model_name, head_lst, head_wgt_dct=head_weights, dropout = params['dropout']).to(dev)
+    model = MheadTokenClassifier(model_name, head_lst, head_wgt_dct=extra['weight'], dropout = params['dropout']).to(dev)
     optimizer = torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
     num_training_steps = params["num_epochs"] * len(train_loader)
     scheduler = get_linear_schedule_with_warmup(
@@ -354,15 +359,14 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    '''
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/mhead"
         dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
         label_list = get_label_set(mode, "mhead")
         params = {
-            "num_epochs": 25,
-            "lr": 2e-5,#3e-5,
+            "num_epochs": 30,
+            "lr": 1e-4,#3e-5,
             "weight_decay": 0.01,
             "batch_size":16,
             "num_warmup_steps":0,
@@ -370,9 +374,15 @@ def main():
             "dropout": 0.1,
             "max_length": 1024
         }
-        model_name = "answerdotai/ModernBERT-base"
+        extra = {
+            "quant": True,
+            "weight": False,
+            "over": False,
+            "sent": False
+        }
+        model_name = "microsoft/deberta-v3-base"
         r = 0
-        finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
+        finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
     for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]: #["answerdotai/ModernBERT-base"]:#
@@ -394,7 +404,7 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    
+    '''
 
 if __name__=="__main__":
     main()
