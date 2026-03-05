@@ -15,7 +15,7 @@ from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import gc
 import tqdm
-from create_datasets import get_label_set
+from create_datasets import get_label_set, CLASS_WEIGHTS
 from auxil import bio_fixing, convert_numpy_torch_to_python
 
 #############
@@ -77,7 +77,7 @@ def sghead_collate(batch, pad_token_id):
         "labels": labels
     }
 
-def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
+def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False, weight_dct = False):
     seqeval = evaluate.load("seqeval")
     model.eval()
     total_eval_loss = 0.0
@@ -145,9 +145,8 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    #dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    # CHANGED FOR HYPERPARAMETER TUNING ONLY
-    dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_{r}")
+    dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
+    #dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_{r}")# CHANGED FOR HYPERPARAMETER TUNING ONLY
     if model_name == "answerdotai/ModernBERT-base":
         train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id, max_length=params['max_length'])
         dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id, max_length=params['max_length'])
@@ -262,7 +261,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
 
 def main():
     cwd = os.getcwd()
-    
+    '''
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/sghead"
@@ -283,9 +282,9 @@ def main():
         finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# ["answerdotai/ModernBERT-base"]:#
-        for mode in ["a","b","c","d","e"]:
-            for r in list(range(5)):
+    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# ["answerdotai/ModernBERT-base"]:#
+        for mode in ["a"]:#,"b","c","d","e"]:
+            for r in list(range(3)):
                 model_save_addr = f"{cwd}/models/{mode}/sghead"
                 dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
@@ -302,6 +301,6 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    '''
+    
 if __name__=="__main__":
     main()

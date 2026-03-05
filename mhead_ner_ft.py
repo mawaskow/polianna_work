@@ -22,7 +22,7 @@ import time
 import json
 import evaluate
 import tqdm
-from create_datasets import get_label_set, ORIG_SPAN_WEIGHTS
+from create_datasets import get_label_set, ORIG_SPAN_WEIGHTS, CLASS_WEIGHTS
 from auxil import bio_fixing, convert_numpy_torch_to_python
 
 #########################
@@ -239,7 +239,7 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     meta_metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     return meta_metrics
 
-def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params):
+def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params, head_weights = None):
     '''
     Docstring for finetune_mhead_model
     
@@ -267,9 +267,8 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    #dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    # UPDATING ONLY FOR HYPERPARAMETER TUNING
-    dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_{r}")
+    dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
+    #dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_{r}")# UPDATING ONLY FOR HYPERPARAMETER TUNING
     if model_name == "answerdotai/ModernBERT-base":
         train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=params['max_length'])
         dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=params['max_length'])
@@ -289,7 +288,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
         collate_fn=lambda b: mhead_collate(b, tokenizer.pad_token_id)
     )
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = MheadTokenClassifier(model_name, head_lst, dropout = params['dropout']).to(dev)
+    model = MheadTokenClassifier(model_name, head_lst, head_wgt_dct=head_weights, dropout = params['dropout']).to(dev)
     optimizer = torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
     num_training_steps = params["num_epochs"] * len(train_loader)
     scheduler = get_linear_schedule_with_warmup(
@@ -376,9 +375,9 @@ def main():
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]: #["answerdotai/ModernBERT-base"]:#
-        for mode in ["a","b","c","d","e"]:
-            for r in list(range(5)):
+    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]: #["answerdotai/ModernBERT-base"]:#
+        for mode in ["a"]:#,"b","c","d","e"]:
+            for r in list(range(3)):
                 model_save_addr = f"{cwd}/models/{mode}/mhead"
                 dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")

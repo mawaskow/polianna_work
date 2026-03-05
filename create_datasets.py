@@ -76,6 +76,16 @@ ORIG_SPAN_WEIGHTS = {'Instrumenttypes': 0.16719409282700423,
  'Time_Resources': 0.0006712696586114307,
  'Authority_established': 0.0014863828154967396}
 
+CLASS_WEIGHTS = {
+    "a":{
+        'Actor': 0.39791860249024347,
+        'InstrumentType': 0.6808267090620032,
+        'Objective': 2.273036093418259,
+        'Resource': 4.451559251559251,
+        'Time': 2.828533685601057
+    }
+}
+
 def df_loading(pol_dir, col_sel=["Policy","Text","Tokens","Curation"]):
     '''
     Function that loads dataframe from POLIANNA pkl
