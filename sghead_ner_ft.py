@@ -86,6 +86,9 @@ def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False, 
     with torch.no_grad():
         for batch in dataloader:
             batch = {k: v.to(dev) for k, v in batch.items()}
+            #print(f"DEBUG: Model num_labels is {model.config.num_labels}")
+            #print(f"DEBUG: Max label index in batch is {batch['labels'].max().item()}")
+            #print(f"DEBUG: Unique labels in batch: {torch.unique(batch['labels']).tolist()}")
             outputs = model(**batch)
             total_eval_loss += outputs.loss.item()
             logits = outputs.logits
@@ -142,7 +145,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
         }
     if not extra:
         extra = {
-            "quant": False,
+            "quant": True,
             "weight": False,
             "over": False,
             "sent": False
@@ -186,8 +189,11 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
             ignore_mismatched_sizes=(model_name == "dslim/bert-base-NER-uncased"),
             device_map="auto"
         )
-        model = prepare_model_for_kbit_training(model)
+        #
+        model.classifier = torch.nn.Linear(model.config.hidden_size, len(label_list))
+        #
         model.classifier.to(dtype=torch.float32, device=dev)
+        model = prepare_model_for_kbit_training(model)
         lora_config = LoraConfig(
             r=9,
             lora_alpha=32,
@@ -287,6 +293,7 @@ def main():
             "batch_size":16,
             "num_warmup_steps":0,
             "patience": 5,
+            "dropout": 0.1,
             "max_length": 512
             }
         extra = {
