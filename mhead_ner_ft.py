@@ -73,7 +73,7 @@ class MheadDataset(Dataset):
 BNB_CONFIG = {
     "load_in_4bit": True,
     "bnb_4bit_quant_type": "nf4",
-    "bnb_4bit_compute_dtype": torch.float32,
+    "bnb_4bit_compute_dtype": torch.float16,
     "bnb_4bit_use_double_quant": True,
     "llm_int8_skip_modules": ["classifier"]
 }
@@ -91,7 +91,6 @@ class MheadTokenClassifier(nn.Module):
         #self.encoder = AutoModel.from_pretrained(base_model_name) #ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
         if quant:
             # quantize
-            compute_dtype = BNB_CONFIG["bnb_4bit_compute_dtype"]
             self.encoder = AutoModel.from_pretrained(base_model_name, quantization_config=BNB_CONFIG)
             self.encoder = prepare_model_for_kbit_training(self.encoder)
             # lora
@@ -104,13 +103,6 @@ class MheadTokenClassifier(nn.Module):
                 task_type="TOKEN_CLS"
             )
             self.encoder = get_peft_model(self.encoder, lora_cfg)
-            #self.encoder.print_trainable_parameters()
-            try:
-                for name, module in self.encoder.named_modules():
-                    if "layernorm" in name.lower():
-                        module.to(compute_dtype)
-            except:
-                pass
             # end qlora
         else:
             self.encoder = AutoModel.from_pretrained(base_model_name)
@@ -126,16 +118,12 @@ class MheadTokenClassifier(nn.Module):
         self.class_weights = class_wgt_dct if class_wgt_dct else {}
         self.head_weights = head_wgt_dct if head_wgt_dct else {}#{head: 1.0 for head in head_lst}
     def forward(self, input_ids, attention_mask=None, labels=None):
-        encoder_dtype = next(self.encoder.parameters()).dtype
-        if attention_mask is not None:
-            attention_mask = attention_mask.to(dtype=encoder_dtype)
         # batch of inputs encoded by base model
         outputs = self.encoder(input_ids, attention_mask=attention_mask)
         # only uses last hidden state... for now
         # will look into averaging/concatenating last few hidden states
-        target_dtype = torch.float32
         sequence_output = outputs.last_hidden_state       # passes encoded input sequence to each classifier to get logits
-        sequence_output = sequence_output.to(target_dtype)
+        sequence_output = sequence_output.to(torch.float32) # changes type to same as classifier heads!
         logits = {head: self.classifiers[head](sequence_output) for head in self.classifiers}
         loss = None
         if labels:
@@ -394,7 +382,7 @@ def main():
             "over": False,
             "sent": False
         }
-        model_name = "FacebookAI/xlm-roberta-base"
+        model_name = "answerdotai/ModernBERT-base"
         r = 0
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
