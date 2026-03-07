@@ -7,7 +7,7 @@ from collections import Counter
 from transformers import AutoModel, AutoConfig, AutoTokenizer, AutoModelForTokenClassification, get_linear_schedule_with_warmup, PreTrainedModel
 from transformers import AutoTokenizer, Trainer
 from transformers.modeling_outputs import TokenClassifierOutput
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 import bitsandbytes as bnb
 from datasets import DatasetDict
 import torch
@@ -73,7 +73,7 @@ class MheadDataset(Dataset):
 BNB_CONFIG = {
     "load_in_4bit": True,
     "bnb_4bit_quant_type": "nf4",
-    "bnb_4bit_compute_dtype": torch.bfloat16,
+    "bnb_4bit_compute_dtype": torch.float32,
     "bnb_4bit_use_double_quant": True,
     "llm_int8_skip_modules": ["classifier"]
 }
@@ -85,13 +85,15 @@ TARGET_MODULES_DICT={
 }
 
 class MheadTokenClassifier(nn.Module):
-    def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1, quant=False):
+    def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1, quant=True):
         super().__init__()
         self.model_name = base_model_name
         #self.encoder = AutoModel.from_pretrained(base_model_name) #ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
         if quant:
             # quantize
+            compute_dtype = BNB_CONFIG["bnb_4bit_compute_dtype"]
             self.encoder = AutoModel.from_pretrained(base_model_name, quantization_config=BNB_CONFIG)
+            self.encoder = prepare_model_for_kbit_training(self.encoder)
             # lora
             lora_cfg = LoraConfig(
                 r=9,
@@ -103,6 +105,12 @@ class MheadTokenClassifier(nn.Module):
             )
             self.encoder = get_peft_model(self.encoder, lora_cfg)
             #self.encoder.print_trainable_parameters()
+            try:
+                for name, module in self.encoder.named_modules():
+                    if "layernorm" in name.lower():
+                        module.to(compute_dtype)
+            except:
+                pass
             # end qlora
         else:
             self.encoder = AutoModel.from_pretrained(base_model_name)
@@ -116,15 +124,18 @@ class MheadTokenClassifier(nn.Module):
         self.classifiers.to(torch.float32) # want higher precision
         self.dropout = nn.Dropout(dropout)
         self.class_weights = class_wgt_dct if class_wgt_dct else {}
-        self.head_weights = head_wgt_dct if head_wgt_dct else {}
+        self.head_weights = head_wgt_dct if head_wgt_dct else {}#{head: 1.0 for head in head_lst}
     def forward(self, input_ids, attention_mask=None, labels=None):
+        encoder_dtype = next(self.encoder.parameters()).dtype
+        if attention_mask is not None:
+            attention_mask = attention_mask.to(dtype=encoder_dtype)
         # batch of inputs encoded by base model
         outputs = self.encoder(input_ids, attention_mask=attention_mask)
         # only uses last hidden state... for now
         # will look into averaging/concatenating last few hidden states
-        sequence_output = outputs.last_hidden_state
-        sequence_output = sequence_output.to(torch.float32) # changes type to same as classifier heads!
-        # passes encoded input sequence to each classifier to get logits
+        target_dtype = torch.float32
+        sequence_output = outputs.last_hidden_state       # passes encoded input sequence to each classifier to get logits
+        sequence_output = sequence_output.to(target_dtype)
         logits = {head: self.classifiers[head](sequence_output) for head in self.classifiers}
         loss = None
         if labels:
@@ -147,6 +158,7 @@ class MheadTokenClassifier(nn.Module):
                 head_loss *= self.head_weights.get(head, 1.0)
                 # sum loss across heads for single update to train simultaneously
                 loss += head_loss
+                #loss += head_loss / len(self.heads)
         return loss, logits
     def save_model(self, model, save_dir, params):
         os.makedirs(save_dir, exist_ok=True)
@@ -265,8 +277,8 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
         }
     if not extra:
         extra = {
-            "quant": False,
-            "weight": False,
+            "quant": True,
+            "weight": {head: 1.0 for head in head_lst},
             "over": False,
             "sent": False
         }
@@ -323,8 +335,10 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
                 labels=batch["labels"],
             )
             train_loss.backward()
+            #torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             scheduler.step()
+            #print(f"Loss check: {train_loss.item()}")
             total_train_loss += train_loss.item()
         avg_train_loss = total_train_loss / len(train_loader)
         metrics = mhead_evaluate_model(model, dev_loader, dev, id2label)
@@ -366,21 +380,21 @@ def main():
         label_list = get_label_set(mode, "mhead")
         params = {
             "num_epochs": 30,
-            "lr": 1e-4,#3e-5,
-            "weight_decay": 0.01,
-            "batch_size":16,
+            "lr": 1e-4,#3e-5,#
+            "weight_decay": 0.025,
+            "batch_size":8,
             "num_warmup_steps":0,
             "patience": 5,
             "dropout": 0.1,
-            "max_length": 1024
+            "max_length": 512
         }
         extra = {
             "quant": True,
-            "weight": False,
+            "weight": {head: 1.0 for head in label_list},
             "over": False,
             "sent": False
         }
-        model_name = "microsoft/deberta-v3-base"
+        model_name = "FacebookAI/xlm-roberta-base"
         r = 0
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
