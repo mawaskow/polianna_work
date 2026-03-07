@@ -189,9 +189,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
             ignore_mismatched_sizes=(model_name == "dslim/bert-base-NER-uncased"),
             device_map="auto"
         )
-        #
-        model.classifier = torch.nn.Linear(model.config.hidden_size, len(label_list))
-        #
+        model.classifier = torch.nn.Linear(model.config.hidden_size, len(label_list)) # fixes bert-base-NER-uncased errors
         model.classifier.to(dtype=torch.float32, device=dev)
         model = prepare_model_for_kbit_training(model)
         lora_config = LoraConfig(
