@@ -41,7 +41,7 @@ TARGET_MODULES_DICT={
     "answerdotai/ModernBERT-base":["attn.Wqkv","attn.Wo","mlp.Wi","mlp.Wo"]
 }
 
-def evaluate_model(mode, htype, model_name, model_save_addr, dsdct_dir, r, batch_size=16, dropout=0.1, max_length=512, quant=False):
+def evaluate_model(mode, htype, model_name, model_save_addr, dsdct_dir, r, batch_size=16, dropout=0.1, max_length=512, quant=True):
     label_list = get_label_set(mode,htype)
     if htype == "mhead":
         label_list = ["O","B","I"]
@@ -112,7 +112,7 @@ def evaluate_model(mode, htype, model_name, model_save_addr, dsdct_dir, r, batch
             collate_fn=lambda b: mhead_collate(b, tokenizer.pad_token_id)
         )
         model = MheadTokenClassifier(model_name, head_lst, dropout=dropout, quant=quant).to(dev)
-        model.load_state_dict(torch.load(model_addr+"/model.pt", weights_only=True))
+        model.load_state_dict(torch.load(model_addr+"/model.pt", weights_only=True), strict=False)
         model.eval()
         metrics, preds, reals = mhead_evaluate_model(model, test_loader, dev, id2label, return_rnp=True)
     return metrics, preds, reals
@@ -403,7 +403,7 @@ def main():
     what_to_do = "get_results"#"display_mdlrpt"#"consolidate_models"#"prettify_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
     ######################################################
     if what_to_do == "get_results":
-        for htype in ['sghead']:#, 'mhead']:#, 'mhead']:
+        for htype in ['mhead']:#, 'mhead']:#, 'mhead']:
             for mode in ["a"]:#,"b"]:#,"c","d"]:#,"e"]:
                 dsdcts_dir = f"{cwd}/inputs/{mode}/{htype}_dsdcts"
                 #models_dir = f"{cwd}/models/{mode}/{htype}"
