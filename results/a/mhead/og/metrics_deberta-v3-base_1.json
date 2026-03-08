@@ -1,0 +1,63 @@
+{
+    "Actor": {
+        "_": {
+            "precision": 0.7767923133776792,
+            "recall": 0.844855305466238,
+            "f1": 0.8093954562957258,
+            "number": 1244
+        },
+        "overall_precision": 0.7767923133776792,
+        "overall_recall": 0.844855305466238,
+        "overall_f1": 0.8093954562957258,
+        "overall_accuracy": 0.9778658286651182
+    },
+    "InstrumentType": {
+        "_": {
+            "precision": 0.39903846153846156,
+            "recall": 0.3448753462603878,
+            "f1": 0.36998514115898956,
+            "number": 722
+        },
+        "overall_precision": 0.39903846153846156,
+        "overall_recall": 0.3448753462603878,
+        "overall_f1": 0.36998514115898956,
+        "overall_accuracy": 0.9601858177346632
+    },
+    "Objective": {
+        "_": {
+            "precision": 0.12552301255230125,
+            "recall": 0.18292682926829268,
+            "f1": 0.14888337468982632,
+            "number": 164
+        },
+        "overall_precision": 0.12552301255230125,
+        "overall_recall": 0.18292682926829268,
+        "overall_f1": 0.14888337468982632,
+        "overall_accuracy": 0.9580270528760759
+    },
+    "Resource": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 75
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9950266429840142
+    },
+    "Time": {
+        "_": {
+            "precision": 0.2848101265822785,
+            "recall": 0.2556818181818182,
+            "f1": 0.2694610778443114,
+            "number": 176
+        },
+        "overall_precision": 0.2848101265822785,
+        "overall_recall": 0.2556818181818182,
+        "overall_f1": 0.2694610778443114,
+        "overall_accuracy": 0.9876485858723869
+    },
+    "overall_f1": 0.3111623488883434
+}

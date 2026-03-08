@@ -86,6 +86,9 @@ def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False, 
     with torch.no_grad():
         for batch in dataloader:
             batch = {k: v.to(dev) for k, v in batch.items()}
+            #print(f"DEBUG: Model num_labels is {model.config.num_labels}")
+            #print(f"DEBUG: Max label index in batch is {batch['labels'].max().item()}")
+            #print(f"DEBUG: Unique labels in batch: {torch.unique(batch['labels']).tolist()}")
             outputs = model(**batch)
             total_eval_loss += outputs.loss.item()
             logits = outputs.logits
@@ -118,7 +121,7 @@ TARGET_MODULES_DICT={
     "answerdotai/ModernBERT-base":["attn.Wqkv","attn.Wo","mlp.Wi","mlp.Wo"]
 }
 
-def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params = None):
+def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params = None, extra = None):
     '''
     Docstring for finetune_sghead_model
     
@@ -140,19 +143,21 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
             "patience": 3,
             "max_length": 512
         }
+    if not extra:
+        extra = {
+            "quant": True,
+            "weight": False,
+            "over": False,
+            "sent": False
+        }
     label2id = {l: i for i, l in enumerate(label_list)}
     id2label = {i: l for i, l in enumerate(label_list)}
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    #dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_{r}")# CHANGED FOR HYPERPARAMETER TUNING ONLY
-    if model_name == "answerdotai/ModernBERT-base":
-        train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id, max_length=params['max_length'])
-        dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id, max_length=params['max_length'])
-    else:
-        train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id)
-        dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id)
+    train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id, max_length=params['max_length'])
+    dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id, max_length=params['max_length'])
     train_loader = DataLoader(
         train_dataset,
         batch_size=params["batch_size"],
@@ -166,40 +171,49 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
         collate_fn=lambda b: sghead_collate(b, tokenizer.pad_token_id)
     )
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # incorporating QLoRA
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16,
-        llm_int8_skip_modules=["classifier"]
-    )
-    model = AutoModelForTokenClassification.from_pretrained(
-        model_name,
-        num_labels=len(label_list),
-        id2label=id2label,
-        label2id=label2id,
-        quantization_config=bnb_config,
-        ignore_mismatched_sizes=(model_name == "dslim/bert-base-NER-uncased"),
-        device_map="auto"
-    )
-    model = prepare_model_for_kbit_training(model)
-    #if hasattr(model, "classifier"):
-    #    model.classifier.to(torch.float32) #force cast to avoid bitsandbytes error??
-    model.classifier.to(dtype=torch.float32, device=dev)
-    lora_config = LoraConfig(
-        r=9,
-        lora_alpha=32,
-        target_modules=TARGET_MODULES_DICT[model_name],
-        lora_dropout=0.1,
-        bias="none",
-        task_type="TOKEN_CLS",
-        modules_to_save=["classifier"]
-    )
-    model = get_peft_model(model, lora_config)
-    model.config.use_cache = False
-    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
-    # end qlora
+    if extra['quant']:
+        # incorporating QLoRA
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            llm_int8_skip_modules=["classifier"]
+        )
+        model = AutoModelForTokenClassification.from_pretrained(
+            model_name,
+            num_labels=len(label_list),
+            id2label=id2label,
+            label2id=label2id,
+            quantization_config=bnb_config,
+            ignore_mismatched_sizes=(model_name == "dslim/bert-base-NER-uncased"),
+            device_map="auto"
+        )
+        model.classifier = torch.nn.Linear(model.config.hidden_size, len(label_list)) # fixes bert-base-NER-uncased errors
+        model.classifier.to(dtype=torch.float32, device=dev)
+        model = prepare_model_for_kbit_training(model)
+        lora_config = LoraConfig(
+            r=9,
+            lora_alpha=32,
+            target_modules=TARGET_MODULES_DICT[model_name],
+            lora_dropout=0.1,
+            bias="none",
+            task_type="TOKEN_CLS",
+            modules_to_save=["classifier"]
+        )
+        model = get_peft_model(model, lora_config)
+        model.config.use_cache = False
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        # end qlora
+    else:
+        model = AutoModelForTokenClassification.from_pretrained(
+            model_name,
+            num_labels=len(label_list),
+            id2label=id2label,
+            label2id=label2id,
+            ignore_mismatched_sizes=(model_name == "dslim/bert-base-NER-uncased"),
+            device_map="auto"
+        )
     optimizer = torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
     num_training_steps = params["num_epochs"] * len(train_loader)
     scheduler = get_linear_schedule_with_warmup(
@@ -271,21 +285,29 @@ def main():
         model_name = "microsoft/deberta-v3-base"
         r = 0
         params = {
-            "num_epochs": 15,
-            "lr": 3e-5, #3e-5, also try 5e-5
+            "num_epochs": 30,
+            "lr": 7E-4,
             "weight_decay": 0.01,
             "batch_size":16,
             "num_warmup_steps":0,
             "patience": 5,
+            "dropout": 0.1,
             "max_length": 512
             }
-        finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
+        extra = {
+            "quant": True,
+            "weight": False,
+            "over": False,
+            "sent": False
+        }
+        finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# ["answerdotai/ModernBERT-base"]:#
+    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
         for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(3)):
-                model_save_addr = f"{cwd}/models/{mode}/sghead"
+                interest = "og"
+                model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
                 dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
                 run_st = time.time()
@@ -302,5 +324,6 @@ def main():
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
     
+
 if __name__=="__main__":
     main()

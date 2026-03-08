@@ -8,10 +8,13 @@ import os
 import evaluate
 from datasets import DatasetDict
 import torch
-from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+from transformers import AutoModelForTokenClassification, AutoTokenizer, BitsAndBytesConfig
+from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model, PeftModel
+import bitsandbytes as bnb
 import json
 from transformers import DataCollatorForTokenClassification
 from torch.utils.data import DataLoader
+from safetensors.torch import load_file
 import pandas as pd
 import numpy as np
 from sklearn.metrics import f1_score, classification_report
@@ -24,8 +27,21 @@ from auxil import bio_fixing, convert_numpy_torch_to_python
 #############
 # functions #
 #############
+BNB_CONFIG = {
+    "load_in_4bit": True,
+    "bnb_4bit_quant_type": "nf4",
+    "bnb_4bit_compute_dtype": torch.bfloat16,
+    "bnb_4bit_use_double_quant": True,
+    "llm_int8_skip_modules": ["classifier"]
+}
+TARGET_MODULES_DICT={
+    "microsoft/deberta-v3-base":["query_proj","key_proj","value_proj","dense"],
+    "FacebookAI/xlm-roberta-base":["query","key","value","dense"],
+    "dslim/bert-base-NER-uncased":["query","key","value","dense"],
+    "answerdotai/ModernBERT-base":["attn.Wqkv","attn.Wo","mlp.Wi","mlp.Wo"]
+}
 
-def evaluate_model(mode, htype, model_name, model_save_addr, dsdct_dir, r, batch_size=16, dropout=0.1):
+def evaluate_model(mode, htype, model_name, model_save_addr, dsdct_dir, r, batch_size=16, dropout=0.1, max_length=512, quant=True):
     label_list = get_label_set(mode,htype)
     if htype == "mhead":
         label_list = ["O","B","I"]
@@ -37,31 +53,66 @@ def evaluate_model(mode, htype, model_name, model_save_addr, dsdct_dir, r, batch
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
     if htype == "sghead":
-        if model_name == "answerdotai/ModernBERT-base":
-            test_dataset = SgheadDataset(dataset_dict["test"], tokenizer, label2id, max_length=2048)
-        else:
-            test_dataset = SgheadDataset(dataset_dict["test"], tokenizer, label2id)
+        test_dataset = SgheadDataset(dataset_dict["test"], tokenizer, label2id, max_length=max_length)
         test_loader = DataLoader(
             test_dataset,
             batch_size=batch_size,
             shuffle=False,
             collate_fn=lambda b: sghead_collate(b, tokenizer.pad_token_id)
         )
-        model = AutoModelForTokenClassification.from_pretrained(model_addr).to(dev)
+        if quant:
+            compute_dtype = torch.float16
+            # incorporating QLoRA
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=compute_dtype,
+                llm_int8_skip_modules=["classifier"]
+            )
+            base_model = AutoModelForTokenClassification.from_pretrained(
+                model_name,
+                num_labels=len(label_list),
+                #id2label=id2label,
+                #label2id=label2id,
+                quantization_config=bnb_config,
+                ignore_mismatched_sizes=(model_name == "dslim/bert-base-NER-uncased"),
+                device_map="auto"
+            )
+            base_model.classifier = torch.nn.Linear(base_model.config.hidden_size, len(label_list)) # fixes bert-base-NER-uncased errors
+            if hasattr(base_model, "classifier"):
+                base_model.classifier = base_model.classifier.to(dtype=compute_dtype)
+            model = PeftModel.from_pretrained(base_model, model_addr)
+            in_features = model.base_model.model.classifier.in_features
+            model.base_model.model.classifier = torch.nn.Linear(in_features, len(label_list)).to(device=dev, dtype=compute_dtype)
+            # inject weights from classifier head
+            st_path = os.path.join(model_addr, "adapter_model.safetensors")
+            if os.path.exists(st_path):
+                tensors = load_file(st_path)
+                new_state = {}
+                for k, v in tensors.items():
+                    if "classifier" in k:
+                        clean_key = k.split(".")[-1] 
+                        #new_state[clean_key] = v
+                        new_state[clean_key] = v.to(compute_dtype)
+                model.base_model.model.classifier.load_state_dict(new_state)
+        else:
+            model = AutoModelForTokenClassification.from_pretrained(model_addr).to(dev)
+        model = model.eval()
+        model.print_trainable_parameters()
+        #model.base_model.model.classifier.to(dev)
+        model.to(compute_dtype)
         metrics, preds, reals = sghead_evaluate_model(model, test_loader, dev, id2label, return_rnp=True)
     elif htype == "mhead":
-        if model_name == "answerdotai/ModernBERT-base":
-            test_dataset = MheadDataset(dataset_dict["test"], head_lst, tokenizer, label2id, max_length=2048)
-        else:
-            test_dataset = MheadDataset(dataset_dict["test"], head_lst, tokenizer, label2id)
+        test_dataset = MheadDataset(dataset_dict["test"], head_lst, tokenizer, label2id, max_length=max_length)
         test_loader = DataLoader(
             test_dataset,
             batch_size=batch_size,
             shuffle=False,
             collate_fn=lambda b: mhead_collate(b, tokenizer.pad_token_id)
         )
-        model = MheadTokenClassifier(model_name, head_lst, dropout = dropout).to(dev)
-        model.load_state_dict(torch.load(model_addr+"/model.pt", weights_only=True))
+        model = MheadTokenClassifier(model_name, head_lst, dropout=dropout, quant=quant).to(dev)
+        model.load_state_dict(torch.load(model_addr+"/model.pt", weights_only=True), strict=False)
         model.eval()
         metrics, preds, reals = mhead_evaluate_model(model, test_loader, dev, id2label, return_rnp=True)
     return metrics, preds, reals
@@ -347,59 +398,61 @@ def display_model_report(mode, htype, model_report):
                 
 def main():
     cwd = os.getcwd()
+    interest = 'og'
     results_dir = f"{cwd}/results"
     # get_results > prettify_results > consolidate_models > display_mdlrpt
-    what_to_do = "get_results"#"display_mdlrpt"#"consolidate_models"#"prettify_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
+    what_to_do = "display_mdlrpt"#"consolidate_models"#"prettify_results"#"get_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
     ######################################################
     if what_to_do == "get_results":
-        for htype in ['sghead']:#, 'mhead']:#, 'mhead']:
+        for htype in ['sghead', 'mhead']:#, 'mhead']:
             for mode in ["a"]:#,"b"]:#,"c","d"]:#,"e"]:
                 dsdcts_dir = f"{cwd}/inputs/{mode}/{htype}_dsdcts"
                 #models_dir = f"{cwd}/models/{mode}/{htype}"
-                models_dir = f"{cwd}/models/{mode}/{htype}/baseline_art"
-                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]: #["answerdotai/ModernBERT-base"]
-                    for r in list(range(3)):
+                models_dir = f"{cwd}/models/{mode}/{htype}/{interest}"#/quant"
+                quant = True
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:
+                    for r in list(range(3)):#[0]:
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
-                        metrics, preds, reals = evaluate_model(mode, htype, model_name, models_dir, dsdcts_dir, r)
-                        with open(f"{results_dir}/{mode}/{htype}/metrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
+                        metrics, preds, reals = evaluate_model(mode, htype, model_name, models_dir, dsdcts_dir, r, quant=quant)
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/metrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(convert_numpy_torch_to_python(metrics), f, indent=4)
                         print(metrics)
                         randp = prettify_randp(htype, reals, preds)
-                        with open(f"{results_dir}/{mode}/{htype}/randp_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/randp_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(randp, f, indent=4)
     elif what_to_do == "prettify_results":
-        for htype in ['mhead']:#, 'mhead']:
-            for mode in ["a","b"]:#,"c","d","e"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:#, "answerdotai/ModernBERT-base"]:
-                    for r in list(range(5)):
+        for htype in ['sghead', 'mhead']:
+            for mode in ["a"]:#,"b"]:#,"c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+                    for r in list(range(3)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
-                        with open(f"{results_dir}/{mode}/{htype}/metrics_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/metrics_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
                             metrics = json.load(f)
-                        with open(f"{results_dir}/{mode}/{htype}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
                             randp = json.load(f)
                         try:
                             report = make_run_report(mode, htype, metrics, randp, "seqeval")
-                            with open(f"{results_dir}/{mode}/{htype}/report_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
+                            with open(f"{results_dir}/{mode}/{htype}/{interest}/report_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                                 json.dump(report, f, indent=4)
                         except Exception as e:
                             print(f"{htype} {mode} {model_name} {r} FAILED")
                             print(e)
     elif what_to_do == "consolidate_models":
-        for htype in ['mhead']:#, 'mhead']:
-            for mode in ["a","b"]:#,"c","d","e"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:#, "answerdotai/ModernBERT-base"]:
+        for htype in ['sghead', 'mhead']:
+            for mode in ["a"]:#,"b"]:#,"c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
-                    results_file_prefix = f"{results_dir}/{mode}/{htype}/report_{model_name.split('/')[-1]}_"
-                    r_lst = list(range(5))
+                    results_file_prefix = f"{results_dir}/{mode}/{htype}/{interest}/report_{model_name.split('/')[-1]}_"
+                    r_lst = list(range(3))
                     report = make_model_report(mode, htype, results_file_prefix, r_lst)
-                    with open(f"{results_dir}/{mode}/{htype}/model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
+                    with open(f"{results_dir}/{mode}/{htype}/{interest}/model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
                         json.dump(report, f, indent=4)
     elif what_to_do == "display_mdlrpt":
         for htype in ["mhead"]:#, 'mhead']:
-            for mode in ["b"]:#,"b","c","d","e"]:
-                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:#, "answerdotai/ModernBERT-base"]:
+            for mode in ["a"]:#,"b","c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
-                    with open(f"{results_dir}/{mode}/{htype}/model_report_{model_name.split('/')[-1]}.json","r", encoding="utf-8") as f:
+                    with open(f"{results_dir}/{mode}/{htype}/{interest}/model_report_{model_name.split('/')[-1]}.json","r", encoding="utf-8") as f:
                         model_report = json.load(f)
                     display_model_report(mode, htype, model_report)
     elif what_to_do == "calc_newmetrics":
@@ -408,10 +461,10 @@ def main():
                 for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
                     for r in list(range(5)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
-                        with open(f"{results_dir}/{mode}/{htype}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
                             randp = json.load(f)
                         result = tokf1_calc(htype, randp)
-                        with open(f"{results_dir}/{mode}/{htype}/newmetrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/newmetrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(result, f, indent=4)
     elif what_to_do == "consol_newmetrics":
         for htype in ['sghead', 'mhead']:

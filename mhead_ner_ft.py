@@ -7,7 +7,7 @@ from collections import Counter
 from transformers import AutoModel, AutoConfig, AutoTokenizer, AutoModelForTokenClassification, get_linear_schedule_with_warmup, PreTrainedModel
 from transformers import AutoTokenizer, Trainer
 from transformers.modeling_outputs import TokenClassifierOutput
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 import bitsandbytes as bnb
 from datasets import DatasetDict
 import torch
@@ -73,7 +73,7 @@ class MheadDataset(Dataset):
 BNB_CONFIG = {
     "load_in_4bit": True,
     "bnb_4bit_quant_type": "nf4",
-    "bnb_4bit_compute_dtype": torch.bfloat16,
+    "bnb_4bit_compute_dtype": torch.float16,
     "bnb_4bit_use_double_quant": True,
     "llm_int8_skip_modules": ["classifier"]
 }
@@ -85,24 +85,27 @@ TARGET_MODULES_DICT={
 }
 
 class MheadTokenClassifier(nn.Module):
-    def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1):
+    def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1, quant=True):
         super().__init__()
         self.model_name = base_model_name
         #self.encoder = AutoModel.from_pretrained(base_model_name) #ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
-        # quantize
-        self.encoder = AutoModel.from_pretrained(base_model_name, quantization_config=BNB_CONFIG)
-        # lora
-        lora_cfg = LoraConfig(
-            r=9,
-            lora_alpha=32,
-            lora_dropout=0.01,
-            bias="none",
-            target_modules=TARGET_MODULES_DICT[base_model_name],
-            task_type="TOKEN_CLS"
-        )
-        self.encoder = get_peft_model(self.encoder, lora_cfg)
-        #self.encoder.print_trainable_parameters()
-        # end qlora
+        if quant:
+            # quantize
+            self.encoder = AutoModel.from_pretrained(base_model_name, quantization_config=BNB_CONFIG)
+            self.encoder = prepare_model_for_kbit_training(self.encoder)
+            # lora
+            lora_cfg = LoraConfig(
+                r=9,
+                lora_alpha=32,
+                lora_dropout=0.01,
+                bias="none",
+                target_modules=TARGET_MODULES_DICT[base_model_name],
+                task_type="TOKEN_CLS"
+            )
+            self.encoder = get_peft_model(self.encoder, lora_cfg)
+            # end qlora
+        else:
+            self.encoder = AutoModel.from_pretrained(base_model_name)
         hidden_size = self.encoder.config.hidden_size
         self.heads = head_lst
         self.num_labels = num_labels
@@ -113,15 +116,14 @@ class MheadTokenClassifier(nn.Module):
         self.classifiers.to(torch.float32) # want higher precision
         self.dropout = nn.Dropout(dropout)
         self.class_weights = class_wgt_dct if class_wgt_dct else {}
-        self.head_weights = head_wgt_dct if head_wgt_dct else {}
+        self.head_weights = head_wgt_dct if head_wgt_dct else {}#{head: 1.0 for head in head_lst}
     def forward(self, input_ids, attention_mask=None, labels=None):
         # batch of inputs encoded by base model
         outputs = self.encoder(input_ids, attention_mask=attention_mask)
         # only uses last hidden state... for now
         # will look into averaging/concatenating last few hidden states
-        sequence_output = outputs.last_hidden_state
+        sequence_output = outputs.last_hidden_state       # passes encoded input sequence to each classifier to get logits
         sequence_output = sequence_output.to(torch.float32) # changes type to same as classifier heads!
-        # passes encoded input sequence to each classifier to get logits
         logits = {head: self.classifiers[head](sequence_output) for head in self.classifiers}
         loss = None
         if labels:
@@ -144,6 +146,7 @@ class MheadTokenClassifier(nn.Module):
                 head_loss *= self.head_weights.get(head, 1.0)
                 # sum loss across heads for single update to train simultaneously
                 loss += head_loss
+                #loss += head_loss / len(self.heads)
         return loss, logits
     def save_model(self, model, save_dir, params):
         os.makedirs(save_dir, exist_ok=True)
@@ -239,7 +242,7 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     meta_metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     return meta_metrics
 
-def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params, head_weights = None):
+def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params, extra=None):
     '''
     Docstring for finetune_mhead_model
     
@@ -260,6 +263,13 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
             "dropout": 0.1,
             "max_length": 512
         }
+    if not extra:
+        extra = {
+            "quant": True,
+            "weight": {head: 1.0 for head in head_lst},
+            "over": False,
+            "sent": False
+        }
     label_list = ['O', 'B', 'I']
     label2id = {l: i for i, l in enumerate(label_list)}
     id2label = {i: l for i, l in enumerate(label_list)}
@@ -268,13 +278,8 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    #dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_{r}")# UPDATING ONLY FOR HYPERPARAMETER TUNING
-    if model_name == "answerdotai/ModernBERT-base":
-        train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=params['max_length'])
-        dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=params['max_length'])
-    else:
-        train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id)
-        dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id)
+    train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=params['max_length'])
+    dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=params['max_length'])
     train_loader = DataLoader(
         train_dataset,
         batch_size=params["batch_size"],
@@ -288,7 +293,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
         collate_fn=lambda b: mhead_collate(b, tokenizer.pad_token_id)
     )
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = MheadTokenClassifier(model_name, head_lst, head_wgt_dct=head_weights, dropout = params['dropout']).to(dev)
+    model = MheadTokenClassifier(model_name, head_lst, head_wgt_dct=extra['weight'], dropout = params['dropout']).to(dev)
     optimizer = torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
     num_training_steps = params["num_epochs"] * len(train_loader)
     scheduler = get_linear_schedule_with_warmup(
@@ -318,8 +323,10 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
                 labels=batch["labels"],
             )
             train_loss.backward()
+            #torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             scheduler.step()
+            #print(f"Loss check: {train_loss.item()}")
             total_train_loss += train_loss.item()
         avg_train_loss = total_train_loss / len(train_loader)
         metrics = mhead_evaluate_model(model, dev_loader, dev, id2label)
@@ -357,28 +364,36 @@ def main():
     '''
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:
-        model_save_addr = f"{cwd}/models/{mode}/mhead"
+        interest="og"
+        model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
         dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
         label_list = get_label_set(mode, "mhead")
         params = {
-            "num_epochs": 25,
-            "lr": 2e-5,#3e-5,
-            "weight_decay": 0.01,
-            "batch_size":16,
+            "num_epochs": 30,
+            "lr": 1e-4,
+            "weight_decay": 0.025,
+            "batch_size":8,
             "num_warmup_steps":0,
             "patience": 5,
             "dropout": 0.1,
-            "max_length": 1024
+            "max_length": 512
         }
-        model_name = "answerdotai/ModernBERT-base"
+        extra = {
+            "quant": True,
+            "weight": False,
+            "over": False,
+            "sent": False
+        }
+        model_name = "microsoft/deberta-v3-base"
         r = 0
-        finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params)
+        finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]: #["answerdotai/ModernBERT-base"]:#
+    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
         for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(3)):
-                model_save_addr = f"{cwd}/models/{mode}/mhead"
+                interest = "og"
+                model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
                 dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
                 run_st = time.time()
