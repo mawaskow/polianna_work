@@ -9,7 +9,7 @@ from create_datasets import get_label_set, CLASS_WEIGHTS
 params = {
     "microsoft/deberta-v3-base":{
             "num_epochs": 30,
-            "lr": 1E-4,#3e-5,
+            "lr": 1e-4,
             "weight_decay": 0.025,
             "batch_size":8,
             "num_warmup_steps":0,
@@ -19,18 +19,18 @@ params = {
     },
     "FacebookAI/xlm-roberta-base":{
             "num_epochs": 30,
-            "lr": 9E-4,#3e-5,
-            "weight_decay": 0.099,
+            "lr": 1e-4,
+            "weight_decay": 0.025,
             "batch_size":8,
             "num_warmup_steps":0,
             "patience": 5,
             "dropout": 0.1,
-            "max_length": 256
+            "max_length": 512
     },
     "dslim/bert-base-NER-uncased":{
             "num_epochs": 30,
-            "lr": 4E-4,#3e-5,
-            "weight_decay": 0.01,
+            "lr": 1e-4,
+            "weight_decay": 0.025,
             "batch_size":8,
             "num_warmup_steps":0,
             "patience": 5,
@@ -39,7 +39,7 @@ params = {
     },
     "answerdotai/ModernBERT-base":{
             "num_epochs": 30,
-            "lr": 5E-4,#3e-5,
+            "lr": 1e-4,
             "weight_decay": 0.025,
             "batch_size":8,
             "num_warmup_steps":0,
@@ -48,6 +48,12 @@ params = {
             "max_length": 512
     }
 }
+extra = {
+            "quant": True,
+            "weight": False,
+            "over": False,
+            "sent": False
+        }
 
 if __name__ == '__main__':
     mode = sys.argv[1]
@@ -57,7 +63,7 @@ if __name__ == '__main__':
     dsdct_dir = sys.argv[5]
     label_list = get_label_set(mode, "mhead")
     #finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[model_name])
-    finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[model_name], head_weights=CLASS_WEIGHTS[mode])
+    finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[model_name], extra=extra)
     torch.cuda.empty_cache()
     gc.collect()
     time.sleep(3)

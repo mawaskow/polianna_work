@@ -275,7 +275,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
 
 def main():
     cwd = os.getcwd()
-    
+    '''
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/sghead"
@@ -286,7 +286,7 @@ def main():
         r = 0
         params = {
             "num_epochs": 30,
-            "lr": 7E-4,#3e-5, #3e-5, also try 5e-5
+            "lr": 7E-4,
             "weight_decay": 0.01,
             "batch_size":16,
             "num_warmup_steps":0,
@@ -303,10 +303,11 @@ def main():
         finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# ["answerdotai/ModernBERT-base"]:#
+    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
         for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(3)):
-                model_save_addr = f"{cwd}/models/{mode}/sghead"
+                interest = "og"
+                model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
                 dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
                 run_st = time.time()
@@ -322,7 +323,7 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    '''
+    
 
 if __name__=="__main__":
     main()

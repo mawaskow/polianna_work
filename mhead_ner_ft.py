@@ -361,14 +361,16 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
+    '''
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:
-        model_save_addr = f"{cwd}/models/{mode}/mhead"
+        interest="og"
+        model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
         dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
         label_list = get_label_set(mode, "mhead")
         params = {
             "num_epochs": 30,
-            "lr": 1e-4,#3e-5,#
+            "lr": 1e-4,
             "weight_decay": 0.025,
             "batch_size":8,
             "num_warmup_steps":0,
@@ -378,19 +380,20 @@ def main():
         }
         extra = {
             "quant": True,
-            "weight": {head: 1.0 for head in label_list},
+            "weight": False,
             "over": False,
             "sent": False
         }
-        model_name = "answerdotai/ModernBERT-base"
+        model_name = "microsoft/deberta-v3-base"
         r = 0
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]: #["answerdotai/ModernBERT-base"]:#
+    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
         for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(3)):
-                model_save_addr = f"{cwd}/models/{mode}/mhead"
+                interest = "og"
+                model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
                 dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
                 run_st = time.time()
@@ -406,7 +409,7 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    '''
+    
 
 if __name__=="__main__":
     main()

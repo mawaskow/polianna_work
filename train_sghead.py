@@ -9,9 +9,9 @@ from create_datasets import get_label_set
 params = {
     "microsoft/deberta-v3-base":{
             "num_epochs": 30,
-            "lr": 7E-4,#3e-5,
-            "weight_decay": 0.02,
-            "batch_size":8,
+            "lr": 7E-4,
+            "weight_decay": 0.01,
+            "batch_size":16,
             "num_warmup_steps":0,
             "patience": 5,
             "dropout": 0.1,
@@ -19,9 +19,9 @@ params = {
     },
     "FacebookAI/xlm-roberta-base":{
             "num_epochs": 30,
-            "lr": 4E-4,#3e-5,
-            "weight_decay": 0.08,
-            "batch_size":32,
+            "lr": 7E-4,
+            "weight_decay": 0.01,
+            "batch_size":16,
             "num_warmup_steps":0,
             "patience": 5,
             "dropout": 0.1,
@@ -29,9 +29,9 @@ params = {
     },
     "dslim/bert-base-NER-uncased":{
             "num_epochs": 30,
-            "lr": 5E-4,#3e-5,
+            "lr": 7E-4,
             "weight_decay": 0.01,
-            "batch_size":8,
+            "batch_size":16,
             "num_warmup_steps":0,
             "patience": 5,
             "dropout": 0.1,
@@ -39,15 +39,21 @@ params = {
     },
     "answerdotai/ModernBERT-base":{
             "num_epochs": 30,
-            "lr": 4E-4,#3e-5,
-            "weight_decay": 0.07,
-            "batch_size":8,
+            "lr": 7E-4,
+            "weight_decay": 0.01,
+            "batch_size":16,
             "num_warmup_steps":0,
             "patience": 5,
             "dropout": 0.1,
-            "max_length": 768
+            "max_length": 512
     }
 }
+extra = {
+            "quant": True,
+            "weight": False,
+            "over": False,
+            "sent": False
+        }
 
 if __name__ == '__main__':
     mode = sys.argv[1]
@@ -56,7 +62,7 @@ if __name__ == '__main__':
     model_save_addr = sys.argv[4]
     dsdct_dir = sys.argv[5]
     label_list = get_label_set(mode, "sghead")
-    finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[model_name])
+    finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[model_name], extra)
     torch.cuda.empty_cache()
     gc.collect()
     time.sleep(3)

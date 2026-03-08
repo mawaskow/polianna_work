@@ -398,60 +398,61 @@ def display_model_report(mode, htype, model_report):
                 
 def main():
     cwd = os.getcwd()
+    interest = 'og'
     results_dir = f"{cwd}/results"
     # get_results > prettify_results > consolidate_models > display_mdlrpt
-    what_to_do = "get_results"#"display_mdlrpt"#"consolidate_models"#"prettify_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
+    what_to_do = "display_mdlrpt"#"consolidate_models"#"prettify_results"#"get_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
     ######################################################
     if what_to_do == "get_results":
-        for htype in ['mhead']:#, 'mhead']:#, 'mhead']:
+        for htype in ['sghead', 'mhead']:#, 'mhead']:
             for mode in ["a"]:#,"b"]:#,"c","d"]:#,"e"]:
                 dsdcts_dir = f"{cwd}/inputs/{mode}/{htype}_dsdcts"
                 #models_dir = f"{cwd}/models/{mode}/{htype}"
-                models_dir = f"{cwd}/models/{mode}/{htype}"#/quant"
+                models_dir = f"{cwd}/models/{mode}/{htype}/{interest}"#/quant"
                 quant = True
                 for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:
-                    for r in [0]:#list(range(3)):
+                    for r in list(range(3)):#[0]:
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
                         metrics, preds, reals = evaluate_model(mode, htype, model_name, models_dir, dsdcts_dir, r, quant=quant)
-                        with open(f"{results_dir}/{mode}/{htype}/metrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/metrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(convert_numpy_torch_to_python(metrics), f, indent=4)
                         print(metrics)
                         randp = prettify_randp(htype, reals, preds)
-                        with open(f"{results_dir}/{mode}/{htype}/randp_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/randp_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(randp, f, indent=4)
     elif what_to_do == "prettify_results":
-        for htype in ['mhead']:#, 'mhead']:
-            for mode in ["a","b"]:#,"c","d","e"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:#, "answerdotai/ModernBERT-base"]:
-                    for r in list(range(5)):
+        for htype in ['sghead', 'mhead']:
+            for mode in ["a"]:#,"b"]:#,"c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+                    for r in list(range(3)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
-                        with open(f"{results_dir}/{mode}/{htype}/metrics_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/metrics_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
                             metrics = json.load(f)
-                        with open(f"{results_dir}/{mode}/{htype}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
                             randp = json.load(f)
                         try:
                             report = make_run_report(mode, htype, metrics, randp, "seqeval")
-                            with open(f"{results_dir}/{mode}/{htype}/report_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
+                            with open(f"{results_dir}/{mode}/{htype}/{interest}/report_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                                 json.dump(report, f, indent=4)
                         except Exception as e:
                             print(f"{htype} {mode} {model_name} {r} FAILED")
                             print(e)
     elif what_to_do == "consolidate_models":
-        for htype in ['mhead']:#, 'mhead']:
-            for mode in ["a","b"]:#,"c","d","e"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:#, "answerdotai/ModernBERT-base"]:
+        for htype in ['sghead', 'mhead']:
+            for mode in ["a"]:#,"b"]:#,"c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
-                    results_file_prefix = f"{results_dir}/{mode}/{htype}/report_{model_name.split('/')[-1]}_"
-                    r_lst = list(range(5))
+                    results_file_prefix = f"{results_dir}/{mode}/{htype}/{interest}/report_{model_name.split('/')[-1]}_"
+                    r_lst = list(range(3))
                     report = make_model_report(mode, htype, results_file_prefix, r_lst)
-                    with open(f"{results_dir}/{mode}/{htype}/model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
+                    with open(f"{results_dir}/{mode}/{htype}/{interest}/model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
                         json.dump(report, f, indent=4)
     elif what_to_do == "display_mdlrpt":
         for htype in ["mhead"]:#, 'mhead']:
-            for mode in ["b"]:#,"b","c","d","e"]:
-                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:#, "answerdotai/ModernBERT-base"]:
+            for mode in ["a"]:#,"b","c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
-                    with open(f"{results_dir}/{mode}/{htype}/model_report_{model_name.split('/')[-1]}.json","r", encoding="utf-8") as f:
+                    with open(f"{results_dir}/{mode}/{htype}/{interest}/model_report_{model_name.split('/')[-1]}.json","r", encoding="utf-8") as f:
                         model_report = json.load(f)
                     display_model_report(mode, htype, model_report)
     elif what_to_do == "calc_newmetrics":
@@ -460,10 +461,10 @@ def main():
                 for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
                     for r in list(range(5)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
-                        with open(f"{results_dir}/{mode}/{htype}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
                             randp = json.load(f)
                         result = tokf1_calc(htype, randp)
-                        with open(f"{results_dir}/{mode}/{htype}/newmetrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/newmetrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(result, f, indent=4)
     elif what_to_do == "consol_newmetrics":
         for htype in ['sghead', 'mhead']:
