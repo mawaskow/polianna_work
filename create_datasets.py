@@ -12,6 +12,8 @@ import os
 from datasets import Dataset, DatasetDict, load_from_disk
 from oversampling import oversample_ds
 from collections import Counter
+import nltk
+#nltk.download('punkt_tab')
 
 #############
 # functions #
@@ -395,7 +397,30 @@ def span_to_mhead_lbls(mode, name, tokens, spans):
                         token_labels[i] = f"I"
     return token_labels
 
-def df_to_ds(mode, htype, df):
+def arts_to_sents(tokens, labels_dct, text):
+    sentences = nltk.sent_tokenize(text)
+    sentence_datapoints = []
+    current_token_idx = 0
+    for sent_text in sentences:
+        sent_tokens = []
+        sent_labels = {k: [] for k in labels_dct.keys()}
+        sent_start_in_text = text.find(sent_text, tokens[current_token_idx].start) #find end char loc of sent in original text
+        sent_end_in_text = sent_start_in_text + len(sent_text) #search from end of last sent to avoid overlap issues
+        while current_token_idx < len(tokens): #tokens within sent's char range
+            tok = tokens[current_token_idx]
+            if tok.start >= sent_end_in_text: #if token starts after sentence ends, it belongs to next sentence
+                break
+            sent_tokens.append(tok.text)
+            for key in labels_dct:
+                sent_labels[key].append(labels_dct[key][current_token_idx])
+            current_token_idx += 1
+        sentence_datapoints.append({
+            "tokens": sent_tokens,
+            **sent_labels
+        })
+    return sentence_datapoints
+
+def df_to_ds(mode, htype, df, sent=False):
     '''
     Converts the original polianna dataframe to huggingface dataset
     :param df: POLIANNA dataframe
@@ -409,26 +434,42 @@ def df_to_ds(mode, htype, df):
         spans = df.loc[artid,"Curation"]
         token_texts = [t.text for t in tokens]
         if htype == "sghead":
-            token_level_labels = span_to_sghead_lbls(mode, tokens, spans)
-            datapoints.append({
-                "id": artid,
-                "text": text,
-                "tokens": token_texts,
-                "ner_tags": token_level_labels
-            })
+            token_level_labels = {}
+            token_level_labels["ner_tags"] = span_to_sghead_lbls(mode, tokens, spans)
+            if not sent:
+                datapoints.append({
+                    "id": artid,
+                    "text": text,
+                    "tokens": token_texts,
+                    "ner_tags": token_level_labels["ner_tags"]
+                })
+            else:
+                sents = arts_to_sents(tokens, token_level_labels, text)
+                for i, sent_data in enumerate(sents):
+                    sent_data["id"] = f"{artid}_s{i}"
+                    datapoints.append(sent_data)       
         elif htype == "mhead":
             datapoint = {}
             datapoint['id'] = artid
             datapoint["text"] = text
             datapoint["tokens"] = token_texts
-            for name in lbl_lst:
-                token_level_labels = span_to_mhead_lbls(mode, name, tokens, spans)
-                datapoint[f"labels_{name}"] = token_level_labels
-            datapoints.append(datapoint)
+            if not sent:
+                for name in lbl_lst:
+                    token_level_labels = span_to_mhead_lbls(mode, name, tokens, spans)
+                    datapoint[f"labels_{name}"] = token_level_labels
+                datapoints.append(datapoint)
+            else:
+                token_level_labels = {}
+                for name in lbl_lst:
+                    token_level_labels[f"labels_{name}"] = span_to_mhead_lbls(mode, name, tokens, spans)
+                sents = arts_to_sents(tokens, token_level_labels, text)
+                for i, sent_data in enumerate(sents):
+                    sent_data["id"] = f"{artid}_s{i}"
+                    datapoints.append(sent_data)
     # return pd.DataFrame(datapoints)
     return Dataset.from_list(datapoints)
 
-def create_ds(mode, htype, pol_dir, dir_addr):
+def create_ds(mode, htype, pol_dir, dir_addr, sent=False):
     '''
     Creates dataset of polianna pkl, converts token and span lists to list of BIO labels converted to integers, 
     and saves new dataset and the list of labels in integer order in provided address.
@@ -437,7 +478,7 @@ def create_ds(mode, htype, pol_dir, dir_addr):
     :param dir_addr: directory where to save dataset
     '''
     pol_df = df_loading(pol_dir)
-    ds = df_to_ds(mode, htype, pol_df)
+    ds = df_to_ds(mode, htype, pol_df, sent=sent)
     ds.save_to_disk(dir_addr)
     print(f"Created dataset in {dir_addr}")
 
@@ -476,7 +517,7 @@ def calculate_wgts_from_dataset(dataset, label_lst, htype):
                 weight = total_samples / (num_classes * count)
             final_weights.append(weight)
         return final_weights
-    
+
 
 def create_oversampled_dsdcts(mode, htype, r, dsdctdir):
     oversample_ds()
@@ -506,6 +547,7 @@ def main():
         create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/mhead_dsdcts", list(range(5)))
         print(f"Made {mode} dsdcts")
     print("Made datasetdcts")
+    '''
     #### for hyperparameter tuning only
     '''
     
@@ -517,6 +559,25 @@ def main():
         create_hyptune_dsdct(mhead_ds, cwd+f"/inputs/{mode}/mhead_dsdcts")
         print(f"Made {mode} dsdcts")
     print("Made datasetdcts")
+    '''
+    ### creates whole sghead and mhead datasets from original POLIANNA database
+    interest = "sent"
+    for mode in ["a","b", "c", "d", "e"]:
+        print(mode)
+        create_ds(mode,"sghead", pol_dir, cwd+f"/inputs/{mode}/{interest}/sghead_ds/", True)
+        create_ds(mode, "mhead", pol_dir, cwd+f"/inputs/{mode}/{interest}/mhead_ds", True)
+        print(f"Made {mode} datasets")
+    print("Made datasets")
+    ### creates the dataset dictionaries for each r split from the sghead and mhead datasets
+    for mode in ["a","b", "c", "d", "e"]:
+        print(mode)
+        sghead_ds = load_from_disk(cwd+f"/inputs/{mode}/{interest}/sghead_ds")
+        create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/{interest}/sghead_dsdcts", list(range(5)))
+        mhead_ds = load_from_disk(cwd+f"/inputs/{mode}/{interest}/mhead_ds")
+        create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/{interest}/mhead_dsdcts", list(range(5)))
+        print(f"Made {mode} dsdcts")
+    print("Made datasetdcts")
+
 
 if __name__=="__main__":
     main()
