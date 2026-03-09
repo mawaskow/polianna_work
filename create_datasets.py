@@ -11,6 +11,7 @@ import pandas as pd
 import os
 from datasets import Dataset, DatasetDict, load_from_disk
 from oversampling import oversample_ds
+from collections import Counter
 
 #############
 # functions #
@@ -83,6 +84,13 @@ CLASS_WEIGHTS = {
         'Objective': 2.273036093418259,
         'Resource': 4.451559251559251,
         'Time': 2.828533685601057
+    },
+    "a2":{
+        'Actor': 0.08938858948150902,
+        'InstrumentType': 0.15294117647058825,
+        'Objective': 0.510615711252654,
+        'Resource': 1.0,
+        'Time': 0.6354029062087188
     }
 }
 
@@ -447,8 +455,30 @@ def create_hyptune_dsdct(dataset, dsdct_dir):
     ds_dct.save_to_disk(f"{dsdct_dir}/dsdct_rhyptune")
     print(f"Created hyptune dataset in {dsdct_dir}")
 
-def create_oversampled_dsdcts(mode, htype, r, dsdctdir):
+def calculate_wgts_from_dataset(dataset, label_lst, htype):
+    if htype == "sghead":
+        all_label_ids = [label for item in dataset for label in item['ner_tags'] if label != -100]
+        counts = dict(Counter(all_label_ids))
+        base_counts = {}
+        for i, label_name in enumerate(label_lst):
+            base_name = label_name.replace("B-", "").replace("I-", "")
+            base_counts[base_name] = base_counts.get(base_name, 0) + counts.get(label_name, 0)
+        total_samples = sum(counts.values())
+        num_classes = len(base_counts)
+        final_weights = []
+        for i, label_name in enumerate(label_lst):
+            base_name = label_name.replace("B-", "").replace("I-", "")
+            # Use the base count for both B and I
+            count = base_counts.get(base_name, 0)
+            if count == 0:
+                weight = 0
+            else:
+                weight = total_samples / (num_classes * count)
+            final_weights.append(weight)
+        return final_weights
     
+
+def create_oversampled_dsdcts(mode, htype, r, dsdctdir):
     oversample_ds()
     print(0)
 

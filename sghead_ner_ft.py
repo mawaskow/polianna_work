@@ -15,7 +15,7 @@ from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import gc
 import tqdm
-from create_datasets import get_label_set, CLASS_WEIGHTS
+from create_datasets import get_label_set, calculate_wgts_from_dataset, CLASS_WEIGHTS
 from auxil import bio_fixing, convert_numpy_torch_to_python
 
 #############
@@ -77,23 +77,27 @@ def sghead_collate(batch, pad_token_id):
         "labels": labels
     }
 
-def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False, weight_dct = False):
+def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False, weights = None):
     seqeval = evaluate.load("seqeval")
     model.eval()
     total_eval_loss = 0.0
     all_preds = []
     all_labels = []
+    weights = weights if weights!=None else [1.0 for idx in list(id2label)]
+    weights = torch.tensor(weights, dtype=torch.float32).to(dev)
     with torch.no_grad():
         for batch in dataloader:
             batch = {k: v.to(dev) for k, v in batch.items()}
-            #print(f"DEBUG: Model num_labels is {model.config.num_labels}")
-            #print(f"DEBUG: Max label index in batch is {batch['labels'].max().item()}")
-            #print(f"DEBUG: Unique labels in batch: {torch.unique(batch['labels']).tolist()}")
             outputs = model(**batch)
-            total_eval_loss += outputs.loss.item()
             logits = outputs.logits
-            predictions = torch.argmax(logits, dim=-1).cpu().numpy()
-            labels = batch["labels"].cpu().numpy()
+            labels = batch["labels"]
+            loss_fct = torch.nn.CrossEntropyLoss(weight=weights.to(logits.dtype), ignore_index=-100)
+            val_loss = loss_fct(logits.reshape(-1, model.config.num_labels), labels.reshape(-1))
+            #val_loss = loss_fct(active_logits, active_labels)
+            total_eval_loss += val_loss.item()
+            #
+            predictions = torch.argmax(logits, dim=-1).detach().cpu().numpy()
+            labels = batch["labels"].detach().cpu().numpy()
             # for sentence token list labels in list of batch sentences
             for preds, labs in zip(predictions, labels):
                 # holds the label(not id) label for each tok in sentence
@@ -146,7 +150,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     if not extra:
         extra = {
             "quant": True,
-            "weight": False,
+            "weight": True,
             "over": False,
             "sent": False
         }
@@ -221,6 +225,11 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
         num_warmup_steps=params["num_warmup_steps"],
         num_training_steps=num_training_steps
     )
+    # enabling weighted loss
+    wgt_lst = calculate_wgts_from_dataset(dataset_dict["train"], label_list, "sghead") if extra['weight'] else [1.0 for lbl in label_list]
+    print(wgt_lst)
+    wgts = torch.tensor(wgt_lst, dtype=torch.float32).to(dev)
+    loss_fct = torch.nn.CrossEntropyLoss(weight=wgts, ignore_index=-100)
     # adding early stopping
     best_eval_loss = float("inf")
     best_epoch_metrics = {}
@@ -231,15 +240,20 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
         total_train_loss = 0.0
         for batch in tqdm.tqdm(train_loader):
             batch = {k: v.to(dev) for k, v in batch.items()}
+            labels = batch.pop("labels")
             optimizer.zero_grad(set_to_none=True)
             outputs = model(**batch)
-            train_loss = outputs.loss
+            #train_loss = outputs.loss
+            logits = outputs.logits
+            active_logits = logits.view(-1, model.config.num_labels)
+            active_labels = labels.view(-1)
+            train_loss = loss_fct(active_logits, active_labels)
             train_loss.backward()
             optimizer.step()
             scheduler.step()
             total_train_loss += train_loss.item()
         avg_train_loss = total_train_loss / len(train_loader)
-        metrics = sghead_evaluate_model(model, dev_loader, dev, id2label)
+        metrics = sghead_evaluate_model(model, dev_loader, dev, id2label, weights=wgts)
         print(f"Epoch {epoch+1} | Train Loss: {avg_train_loss:.4f} | Eval Loss: {metrics['avg_eval_loss']:.4f} | Precision: {metrics['overall_precision']:.4f} | Recall: {metrics['overall_recall']:.4f} | F1: {metrics['overall_f1']:.4f}")
         if metrics['avg_eval_loss'] < best_eval_loss:
             best_eval_loss = metrics['avg_eval_loss']
@@ -275,10 +289,11 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
 
 def main():
     cwd = os.getcwd()
+    interest = "w1"
     '''
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:
-        model_save_addr = f"{cwd}/models/{mode}/sghead"
+        model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
         dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
         label_list = get_label_set(mode, "sghead")
         #
@@ -303,10 +318,9 @@ def main():
         finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
+    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
         for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(3)):
-                interest = "og"
                 model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
                 dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
