@@ -22,7 +22,7 @@ import time
 import json
 import evaluate
 import tqdm
-from create_datasets import get_label_set, ORIG_SPAN_WEIGHTS, CLASS_WEIGHTS
+from create_datasets import get_label_set, calculate_wgts_from_dataset, ORIG_SPAN_WEIGHTS, CLASS_WEIGHTS
 from auxil import bio_fixing, convert_numpy_torch_to_python
 
 #########################
@@ -361,10 +361,10 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    '''
+    interest= "w1"
+
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:
-        interest="og"
         model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
         dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
         label_list = get_label_set(mode, "mhead")
@@ -380,19 +380,18 @@ def main():
         }
         extra = {
             "quant": True,
-            "weight": False,
+            "weight": CLASS_WEIGHTS[mode],
             "over": False,
             "sent": False
         }
         model_name = "microsoft/deberta-v3-base"
-        r = 0
+        r = 2
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
     for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
         for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(3)):
-                interest = "og"
                 model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
                 dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
@@ -409,7 +408,7 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    
+    '''
 
 if __name__=="__main__":
     main()

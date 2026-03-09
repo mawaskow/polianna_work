@@ -50,7 +50,7 @@ params = {
 }
 extra = {
             "quant": True,
-            "weight": False,
+            "weight": True,
             "over": False,
             "sent": False
         }
