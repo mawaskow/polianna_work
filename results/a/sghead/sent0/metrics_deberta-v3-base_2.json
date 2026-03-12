@@ -1,0 +1,36 @@
+{
+    "Actor": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 1116
+    },
+    "InstrumentType": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 574
+    },
+    "Objective": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 191
+    },
+    "Resource": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 125
+    },
+    "Time": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 158
+    },
+    "overall_precision": 0.0,
+    "overall_recall": 0.0,
+    "overall_f1": 0.0,
+    "overall_accuracy": 0.8250776716102937
+}

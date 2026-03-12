@@ -52,7 +52,7 @@ extra = {
             "quant": True,
             "weight": False,
             "over": False,
-            "sent": False
+            "sent": True
         }
 
 if __name__ == '__main__':
@@ -62,6 +62,11 @@ if __name__ == '__main__':
     model_save_addr = sys.argv[4]
     dsdct_dir = sys.argv[5]
     label_list = get_label_set(mode, "mhead")
+    if extra['weight'] == True:
+        extra['weight'] = CLASS_WEIGHTS[mode]
+        params[model_name]['lr'] = params[model_name]['lr']/2
+    if extra['sent'] == True:
+        params[model_name]["batch_size"] = params[model_name]["batch_size"]*2
     #finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[model_name])
     finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[model_name], extra=extra)
     torch.cuda.empty_cache()

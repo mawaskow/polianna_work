@@ -1,0 +1,62 @@
+{
+    "metrics": {
+        "Actor": {
+            "precision": 0.5937818552497451,
+            "recall": 0.7898305084745763,
+            "f1": 0.6779167878964213,
+            "number": 1475
+        },
+        "InstrumentType": {
+            "precision": 0.20864015709376535,
+            "recall": 0.48240635641316687,
+            "f1": 0.29129540781357094,
+            "number": 881
+        },
+        "Objective": {
+            "precision": 0.04883720930232558,
+            "recall": 0.18584070796460178,
+            "f1": 0.07734806629834254,
+            "number": 226
+        },
+        "Resource": {
+            "precision": 0.04419889502762431,
+            "recall": 0.36363636363636365,
+            "f1": 0.07881773399014777,
+            "number": 110
+        },
+        "Time": {
+            "precision": 0.13001912045889102,
+            "recall": 0.4121212121212121,
+            "f1": 0.1976744186046512,
+            "number": 165
+        }
+    },
+    "counts": {
+        "reals": {
+            "O": 37822,
+            "B-InstrumentType": 864,
+            "B-Actor": 1473,
+            "I-Actor": 1456,
+            "I-InstrumentType": 1083,
+            "B-Time": 163,
+            "I-Time": 540,
+            "B-Objective": 192,
+            "I-Objective": 1482,
+            "B-Resource": 107,
+            "I-Resource": 114
+        },
+        "preds": {
+            "O": 28403,
+            "B-InstrumentType": 2037,
+            "I-InstrumentType": 2220,
+            "B-Actor": 1962,
+            "I-Actor": 2179,
+            "B-Time": 523,
+            "I-Time": 1328,
+            "B-Objective": 860,
+            "I-Objective": 3347,
+            "B-Resource": 905,
+            "I-Resource": 1532
+        }
+    }
+}

@@ -289,7 +289,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
 
 def main():
     cwd = os.getcwd()
-    interest = "w1"
+    interest = "sent"
     '''
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:
@@ -322,7 +322,10 @@ def main():
         for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(3)):
                 model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
-                dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
+                if interest == "sent":
+                    dsdct_dir = f"{cwd}/inputs/{mode}/{interest}/sghead_dsdcts"
+                else:
+                    dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
                 run_st = time.time()
                 subprocess.run([

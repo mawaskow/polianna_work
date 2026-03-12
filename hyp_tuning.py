@@ -14,6 +14,12 @@ def sg_objective(trial, model_name, letter):
         "num_warmup_steps": 0,
         "patience": 5
     }
+    extra = {
+            "quant": True,
+            "weight": False,
+            "over": False,
+            "sent": False
+        }
     try:
         metrics = finetune_sghead_model(
             model_name=model_name,
@@ -21,7 +27,8 @@ def sg_objective(trial, model_name, letter):
             model_save_addr=f"./models/{letter}/sghead/optuna/{model_name.split('/')[-1]}",
             dsdct_dir=f"./inputs/{letter}/sghead_dsdcts",
             r="hyptune",
-            params=params
+            params=params,
+            extra=extra
         )
         return metrics["avg_eval_loss"], metrics["overall_f1"]
     except Exception as e:
@@ -39,6 +46,12 @@ def mh_objective(trial, model_name, letter):
         "patience": 5,
         "dropout": 0.1,
     }
+    extra = {
+            "quant": True,
+            "weight": False,
+            "over": False,
+            "sent": False
+        }
     try:
         metrics = finetune_mhead_model(
             model_name=model_name,
@@ -46,7 +59,8 @@ def mh_objective(trial, model_name, letter):
             model_save_addr=f"./models/{letter}/mhead/optuna/{model_name.split('/')[-1]}",
             dsdct_dir=f"./inputs/{letter}/mhead_dsdcts",
             r="hyptune",
-            params=params
+            params=params,
+            extra = extra
         )
         return metrics["avg_eval_loss"], metrics["overall_f1"]
     except Exception as e:
@@ -55,8 +69,8 @@ def mh_objective(trial, model_name, letter):
 
 def main():
     cwd = os.getcwd()
-    for l in ["a"]:#,"b","c","d","e"]:#
-        for mn in ["answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# :
+    for l in ["d","e"]:#["a","b","c","d","e"]:#
+        for mn in ["answerdotai/ModernBERT-base"]:#["dslim/bert-base-NER-uncased"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# :
             print(f"\n\n\n----- Beginning optuna runs for {l} {mn} ----")
             study = optuna.create_study(directions=["minimize","maximize"])
             study.optimize(lambda t: sg_objective(t, mn, l), n_trials=50)
