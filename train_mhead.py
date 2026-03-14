@@ -5,54 +5,14 @@ import os, json, sys, time, gc
 import torch
 from mhead_ner_ft import finetune_mhead_model
 from create_datasets import get_label_set, CLASS_WEIGHTS
+from auxil import HYPERPARAM_DCT
 
-params = {
-    "microsoft/deberta-v3-base":{
-            "num_epochs": 30,
-            "lr": 1e-4,
-            "weight_decay": 0.025,
-            "batch_size":8,
-            "num_warmup_steps":0,
-            "patience": 5,
-            "dropout": 0.1,
-            "max_length": 512
-    },
-    "FacebookAI/xlm-roberta-base":{
-            "num_epochs": 30,
-            "lr": 1e-4,
-            "weight_decay": 0.025,
-            "batch_size":8,
-            "num_warmup_steps":0,
-            "patience": 5,
-            "dropout": 0.1,
-            "max_length": 512
-    },
-    "dslim/bert-base-NER-uncased":{
-            "num_epochs": 30,
-            "lr": 1e-4,
-            "weight_decay": 0.025,
-            "batch_size":8,
-            "num_warmup_steps":0,
-            "patience": 5,
-            "dropout": 0.1,
-            "max_length": 512
-    },
-    "answerdotai/ModernBERT-base":{
-            "num_epochs": 30,
-            "lr": 1e-4,
-            "weight_decay": 0.025,
-            "batch_size":8,
-            "num_warmup_steps":0,
-            "patience": 5,
-            "dropout": 0.1,
-            "max_length": 512
-    }
-}
+params = HYPERPARAM_DCT["mhead"]
 extra = {
             "quant": True,
             "weight": False,
             "over": False,
-            "sent": True
+            "sent": False
         }
 
 if __name__ == '__main__':
@@ -63,12 +23,12 @@ if __name__ == '__main__':
     dsdct_dir = sys.argv[5]
     label_list = get_label_set(mode, "mhead")
     if extra['weight'] == True:
-        extra['weight'] = CLASS_WEIGHTS[mode]
-        params[model_name]['lr'] = params[model_name]['lr']/2
+        extra['weight'] = CLASS_WEIGHTS[mode] # need to create in-function weight calculation 
+        params[mode][model_name]['lr'] = params[mode][model_name]['lr']/2
     if extra['sent'] == True:
-        params[model_name]["batch_size"] = params[model_name]["batch_size"]*2
+        params[mode][model_name]["batch_size"] = params[mode][model_name]["batch_size"]*2
     #finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[model_name])
-    finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[model_name], extra=extra)
+    finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[mode][model_name], extra=extra)
     torch.cuda.empty_cache()
     gc.collect()
     time.sleep(3)

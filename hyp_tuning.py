@@ -69,15 +69,15 @@ def mh_objective(trial, model_name, letter):
 
 def main():
     cwd = os.getcwd()
-    for l in ["d","e"]:#["a","b","c","d","e"]:#
-        for mn in ["answerdotai/ModernBERT-base"]:#["dslim/bert-base-NER-uncased"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# :
+    for l in ["b","c","d","e"]:#["a","b","c","d","e"]:#
+        for mn in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base"]:#["answerdotai/ModernBERT-base"]:#["dslim/bert-base-NER-uncased"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:# :
             print(f"\n\n\n----- Beginning optuna runs for {l} {mn} ----")
             study = optuna.create_study(directions=["minimize","maximize"])
-            study.optimize(lambda t: sg_objective(t, mn, l), n_trials=50)
-            #study.optimize(lambda t: mh_objective(t, mn, l), n_trials=50)
+            #study.optimize(lambda t: sg_objective(t, mn, l), n_trials=50)
+            study.optimize(lambda t: mh_objective(t, mn, l), n_trials=50)
             df = study.trials_dataframe()
-            df.to_csv(f"{cwd}/results/{l}/sghead/hyptuning_{mn.split('/')[-1]}.csv")
-            #df.to_csv(f"{cwd}/results/{l}/mhead/hyptuning_{mn.split('/')[-1]}.csv")
+            #df.to_csv(f"{cwd}/results/{l}/sghead/hyptuning_{mn.split('/')[-1]}.csv")
+            df.to_csv(f"{cwd}/results/{l}/mhead/hyptuning_{mn.split('/')[-1]}.csv")
             del study
             print(f"\n\n\n----- Completed optuna runs for {l} {mn} ----")
 
