@@ -1,0 +1,72 @@
+{
+    "Actor": {
+        "precision": 0.7652329749103942,
+        "recall": 0.9017951425554382,
+        "f1": 0.8279205041202133,
+        "number": 947
+    },
+    "ApplicationSpecificity": {
+        "precision": 0.334384858044164,
+        "recall": 0.381294964028777,
+        "f1": 0.3563025210084033,
+        "number": 278
+    },
+    "Compliance": {
+        "precision": 0.505938242280285,
+        "recall": 0.5916666666666667,
+        "f1": 0.5454545454545454,
+        "number": 360
+    },
+    "EnergySpecificity": {
+        "precision": 0.7133956386292835,
+        "recall": 0.720125786163522,
+        "f1": 0.7167449139280125,
+        "number": 318
+    },
+    "InstrumentType": {
+        "precision": 0.503030303030303,
+        "recall": 0.5845070422535211,
+        "f1": 0.5407166123778502,
+        "number": 568
+    },
+    "Objective": {
+        "precision": 0.18631178707224336,
+        "recall": 0.3656716417910448,
+        "f1": 0.24685138539042825,
+        "number": 268
+    },
+    "Reference": {
+        "precision": 0.7244444444444444,
+        "recall": 0.7477064220183486,
+        "f1": 0.7358916478555303,
+        "number": 218
+    },
+    "Resource": {
+        "precision": 0.21568627450980393,
+        "recall": 0.29333333333333333,
+        "f1": 0.2485875706214689,
+        "number": 75
+    },
+    "Reversibility": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 2
+    },
+    "TechnologySpecificity": {
+        "precision": 0.4085106382978723,
+        "recall": 0.5439093484419264,
+        "f1": 0.46658566221142167,
+        "number": 353
+    },
+    "Time": {
+        "precision": 0.5,
+        "recall": 0.6086956521739131,
+        "f1": 0.5490196078431373,
+        "number": 161
+    },
+    "overall_precision": 0.5298576022048691,
+    "overall_recall": 0.6502254791431793,
+    "overall_f1": 0.5839028094153379,
+    "overall_accuracy": 0.8508064516129032
+}

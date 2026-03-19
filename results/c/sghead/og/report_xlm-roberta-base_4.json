@@ -1,0 +1,42 @@
+{
+    "metrics": {
+        "Policydesigncharacteristics": {
+            "precision": 0.5757325629385059,
+            "recall": 0.710285132382892,
+            "f1": 0.6359699111009801,
+            "number": 1964
+        },
+        "Technologyandapplicationspecificity": {
+            "precision": 0.518213866039953,
+            "recall": 0.5991847826086957,
+            "f1": 0.555765595463138,
+            "number": 736
+        },
+        "Instrumenttypes": {
+            "precision": 0.4114002478314746,
+            "recall": 0.5179407176287052,
+            "f1": 0.4585635359116022,
+            "number": 641
+        }
+    },
+    "counts": {
+        "reals": {
+            "O": 24602,
+            "B-Policydesigncharacteristics": 1873,
+            "I-Policydesigncharacteristics": 4109,
+            "B-Technologyandapplicationspecificity": 732,
+            "I-Technologyandapplicationspecificity": 1546,
+            "B-Instrumenttypes": 608,
+            "I-Instrumenttypes": 769
+        },
+        "preds": {
+            "O": 24506,
+            "B-Policydesigncharacteristics": 2423,
+            "I-Policydesigncharacteristics": 3200,
+            "B-Technologyandapplicationspecificity": 851,
+            "I-Technologyandapplicationspecificity": 1686,
+            "B-Instrumenttypes": 807,
+            "I-Instrumenttypes": 766
+        }
+    }
+}

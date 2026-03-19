@@ -1,0 +1,122 @@
+{
+    "metrics": {
+        "Actor": {
+            "precision": 0.7456993268511594,
+            "recall": 0.8499573742540495,
+            "f1": 0.7944223107569721,
+            "number": 1173
+        },
+        "ApplicationSpecificity": {
+            "precision": 0.23980815347721823,
+            "recall": 0.3401360544217687,
+            "f1": 0.2812939521800282,
+            "number": 294
+        },
+        "Compliance": {
+            "precision": 0.48881789137380194,
+            "recall": 0.4409221902017291,
+            "f1": 0.4636363636363637,
+            "number": 347
+        },
+        "EnergySpecificity": {
+            "precision": 0.6166077738515902,
+            "recall": 0.7210743801652892,
+            "f1": 0.6647619047619049,
+            "number": 484
+        },
+        "InstrumentType": {
+            "precision": 0.4067055393586006,
+            "recall": 0.5081967213114754,
+            "f1": 0.45182186234817817,
+            "number": 549
+        },
+        "Objective": {
+            "precision": 0.18181818181818182,
+            "recall": 0.32450331125827814,
+            "f1": 0.2330558858501784,
+            "number": 302
+        },
+        "Reference": {
+            "precision": 0.601123595505618,
+            "recall": 0.8136882129277566,
+            "f1": 0.691437802907916,
+            "number": 263
+        },
+        "Resource": {
+            "precision": 0.15,
+            "recall": 0.027777777777777776,
+            "f1": 0.04687500000000001,
+            "number": 108
+        },
+        "Reversibility": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 3
+        },
+        "TechnologySpecificity": {
+            "precision": 0.42290748898678415,
+            "recall": 0.49230769230769234,
+            "f1": 0.4549763033175356,
+            "number": 585
+        },
+        "Time": {
+            "precision": 0.422680412371134,
+            "recall": 0.6089108910891089,
+            "f1": 0.4989858012170386,
+            "number": 202
+        }
+    },
+    "counts": {
+        "reals": {
+            "O": 28138,
+            "B-Time": 201,
+            "I-Time": 510,
+            "B-Compliance": 328,
+            "I-Compliance": 491,
+            "B-Actor": 1135,
+            "I-Actor": 1206,
+            "B-InstrumentType": 516,
+            "B-TechnologySpecificity": 450,
+            "I-TechnologySpecificity": 930,
+            "B-Reference": 257,
+            "I-Reference": 1052,
+            "I-InstrumentType": 710,
+            "B-ApplicationSpecificity": 254,
+            "I-ApplicationSpecificity": 575,
+            "B-Objective": 191,
+            "I-Objective": 1196,
+            "B-Resource": 104,
+            "I-Resource": 189,
+            "B-EnergySpecificity": 481,
+            "I-EnergySpecificity": 662,
+            "B-Reversibility": 3,
+            "I-Reversibility": 28
+        },
+        "preds": {
+            "O": 28238,
+            "B-Time": 291,
+            "I-Time": 532,
+            "B-Compliance": 313,
+            "I-Compliance": 115,
+            "B-Actor": 1337,
+            "I-Actor": 1224,
+            "B-InstrumentType": 686,
+            "B-TechnologySpecificity": 681,
+            "I-TechnologySpecificity": 572,
+            "B-Reference": 356,
+            "I-Reference": 1146,
+            "B-EnergySpecificity": 566,
+            "B-Objective": 539,
+            "I-Objective": 1214,
+            "I-InstrumentType": 401,
+            "B-ApplicationSpecificity": 417,
+            "B-Reversibility": 17,
+            "I-Reversibility": 14,
+            "I-ApplicationSpecificity": 260,
+            "B-Resource": 20,
+            "I-EnergySpecificity": 665,
+            "I-Resource": 3
+        }
+    }
+}

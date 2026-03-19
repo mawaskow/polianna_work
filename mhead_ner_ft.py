@@ -23,7 +23,7 @@ import json
 import evaluate
 import tqdm
 from create_datasets import get_label_set, calculate_wgts_from_dataset, ORIG_SPAN_WEIGHTS, CLASS_WEIGHTS
-from auxil import bio_fixing, convert_numpy_torch_to_python
+from auxil import bio_fixing, convert_numpy_torch_to_python, HYPERPARAM_DCT
 
 #########################
 # classes and functions #
@@ -65,6 +65,57 @@ class MheadDataset(Dataset):
                     "attention_mask": torch.tensor(tokenized_inputs["attention_mask"][i]),
                     "labels": {head:torch.tensor(head_lbl_dct[head]) for head in self.heads}
                 })
+    def calculate_tag_weights(self):
+        weights_dct = {}
+        for head in self.heads:
+            try:
+                all_labels = [label for art in self.dataset['labels'][head] for label in art]
+            except:
+                all_labels = [label for art in self.dataset[f'labels_{head}'] for label in art]
+            counts = {"O":0,"B":0,"I":0}
+            cntr = dict(Counter(all_labels))
+            for key in list(cntr):
+                counts[key] = cntr[key]
+            # Calculate inverse frequency: total_count / (num_classes * class_count)
+            total_tokens = 0
+            for lbl in list(counts):
+                total_tokens+= counts[lbl]
+                if counts[lbl]<1:
+                    counts[lbl]=1# To avoid division by zero if a head has NO labels in a subset
+            # weights = total / (n_classes * class_counts)
+            counts_lst = [counts[key] for key in ["O","B","I"]]
+            head_weights = [total_tokens / (3.0 * count) for count in counts_lst]
+            # Normalize so the 'O' tag weight is always 1.0 
+            norm_head_weights = [weight / head_weights[0] for weight in head_weights]
+            weights_dct[head] = torch.tensor(head_weights)#norm_head_weights)
+        return weights_dct
+    def calculate_head_weights(self):
+        entities_dct = {}
+        for head in self.heads:
+            try:
+                all_labels = [label for art in self.dataset['labels'][head] for label in art]
+            except:
+                all_labels = [label for art in self.dataset[f'labels_{head}'] for label in art]
+            cntr = dict(Counter(all_labels))
+            try:
+                entities_dct[head] = cntr["B"]
+            except:
+                entities_dct[head] = 0
+        # inverse frequency: total_count / (num_classes * class_count)
+        total_entities = 0
+        for head in self.heads:
+            total_entities+= entities_dct[head]
+            if entities_dct[head]<1:
+                entities_dct[head]=1# To avoid division by zero if a head has NO labels in a subset
+        # weights = total / (n_classes * class_counts)
+        counts_lst = [entities_dct[key] for key in self.heads]
+        head_weights = [total_entities / (3.0 * count) for count in counts_lst]
+        # Normalize so the 'O' tag weight is always 1.0 
+        norm_head_weights = [weight / head_weights[0] for weight in head_weights]
+        weights_dct = {}
+        for i, head in enumerate(self.heads):
+            weights_dct[head] = torch.tensor(head_weights[i])#norm_head_weights[i])
+        return weights_dct
     def __len__(self):
         return len(self.items)
     def __getitem__(self, idx):
@@ -151,14 +202,22 @@ class MheadTokenClassifier(nn.Module):
     def save_model(self, model, save_dir, params):
         os.makedirs(save_dir, exist_ok=True)
         torch.save(model.state_dict(), os.path.join(save_dir, "model.pt"))
+        if self.class_weights:
+            class_weights = {head: self.class_weights[head].tolist() for head in self.heads}
+        else:
+            class_weights = {head: [1,1,1] for head in self.heads}
+        if self.head_weights:
+            head_weights = {head: float(self.head_weights[head]) for head in self.heads}
+        else:
+            head_weights = {head: 1 for head in self.heads}
         config = {
             "base_model_name": self.model_name,
             "heads": self.heads,
             "num_labels": self.num_labels,
             "params": params,
             "dropout": params['dropout'],
-            "class_weights": self.class_weights,#{k: v.tolist() for k, v in (class_weights or {}).items()},
-            "head_weights": self.head_weights
+            "class_weights": class_weights,#{k: v.tolist() for k, v in (class_weights or {}).items()},
+            "head_weights": head_weights
         }
         with open(os.path.join(save_dir, "config.json"), "w") as f:
             json.dump(config, f, indent=4)
@@ -293,7 +352,19 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
         collate_fn=lambda b: mhead_collate(b, tokenizer.pad_token_id)
     )
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = MheadTokenClassifier(model_name, head_lst, head_wgt_dct=extra['weight'], dropout = params['dropout']).to(dev)
+    class_weight_dct = train_dataset.calculate_tag_weights() if extra['weight'] else None
+    #class_weight_dct = None
+    #head_weight_dct = train_dataset.calculate_head_weights() if extra['weight'] else None
+    head_weight_dct=None
+    #
+    #class_cnts = [class_weight_dct[key] for key in list(class_weight_dct)]
+    #head_cnts = [head_weight_dct[key] for key in list(head_weight_dct)]
+    #print(sum(head_cnts))
+    #for head in head_lst:
+    #    print(head)
+    #    print(sum(class_weight_dct[head]))
+    #    
+    model = MheadTokenClassifier(model_name, head_lst, class_wgt_dct=class_weight_dct, head_wgt_dct=head_weight_dct, dropout = params['dropout']).to(dev)
     optimizer = torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
     num_training_steps = params["num_epochs"] * len(train_loader)
     scheduler = get_linear_schedule_with_warmup(
@@ -361,30 +432,23 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    interest= "sent"
-    '''
+    interest= "w2"
+    
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
         dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
         label_list = get_label_set(mode, "mhead")
-        params = {
-            "num_epochs": 30,
-            "lr": 1e-4,
-            "weight_decay": 0.025,
-            "batch_size":8,
-            "num_warmup_steps":0,
-            "patience": 5,
-            "dropout": 0.1,
-            "max_length": 512
-        }
         extra = {
             "quant": True,
-            "weight": CLASS_WEIGHTS[mode],
+            "weight": True,
             "over": False,
             "sent": False
         }
         model_name = "microsoft/deberta-v3-base"
+        params = HYPERPARAM_DCT["mhead"][mode][model_name]
+        #if interest[0]=="w":
+        #    params['lr'] = params['lr']/10
         r = 0
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
@@ -411,6 +475,6 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-
+    '''
 if __name__=="__main__":
     main()

@@ -1,0 +1,222 @@
+{
+    "Addressee_default": {
+        "precision": 0.48509933774834435,
+        "recall": 0.7306733167082294,
+        "f1": 0.583084577114428,
+        "number": 401
+    },
+    "Addressee_monitored": {
+        "precision": 0.4175824175824176,
+        "recall": 0.35514018691588783,
+        "f1": 0.3838383838383838,
+        "number": 107
+    },
+    "Addressee_resource": {
+        "precision": 0.25,
+        "recall": 0.02857142857142857,
+        "f1": 0.05128205128205128,
+        "number": 35
+    },
+    "Addressee_sector": {
+        "precision": 0.5333333333333333,
+        "recall": 0.573134328358209,
+        "f1": 0.5525179856115108,
+        "number": 335
+    },
+    "Authority_default": {
+        "precision": 0.49242424242424243,
+        "recall": 0.37572254335260113,
+        "f1": 0.4262295081967213,
+        "number": 173
+    },
+    "Authority_established": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 20
+    },
+    "Authority_legislative": {
+        "precision": 0.726027397260274,
+        "recall": 0.8688524590163934,
+        "f1": 0.7910447761194029,
+        "number": 61
+    },
+    "Authority_monitoring": {
+        "precision": 0.6608187134502924,
+        "recall": 0.7483443708609272,
+        "f1": 0.7018633540372671,
+        "number": 151
+    },
+    "Edu_Outreach": {
+        "precision": 0.06,
+        "recall": 0.08571428571428572,
+        "f1": 0.07058823529411765,
+        "number": 35
+    },
+    "Form_monitoring": {
+        "precision": 0.34440559440559443,
+        "recall": 0.5828402366863905,
+        "f1": 0.432967032967033,
+        "number": 338
+    },
+    "Form_sanctioning": {
+        "precision": 0.6666666666666666,
+        "recall": 0.46153846153846156,
+        "f1": 0.5454545454545455,
+        "number": 13
+    },
+    "FrameworkPolicy": {
+        "precision": 0.32967032967032966,
+        "recall": 0.5172413793103449,
+        "f1": 0.40268456375838924,
+        "number": 58
+    },
+    "Objective_QualIntention": {
+        "precision": 0.08090614886731391,
+        "recall": 0.176056338028169,
+        "f1": 0.11086474501108647,
+        "number": 142
+    },
+    "Objective_QualIntention_noCCM": {
+        "precision": 0.023255813953488372,
+        "recall": 0.015625,
+        "f1": 0.018691588785046728,
+        "number": 64
+    },
+    "Objective_QuantTarget": {
+        "precision": 0.14102564102564102,
+        "recall": 0.2894736842105263,
+        "f1": 0.18965517241379312,
+        "number": 76
+    },
+    "Objective_QuantTarget_noCCM": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 2
+    },
+    "PublicInvt": {
+        "precision": 0.5,
+        "recall": 0.4444444444444444,
+        "f1": 0.47058823529411764,
+        "number": 18
+    },
+    "RD_D": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 4
+    },
+    "Ref_OtherPolicy": {
+        "precision": 0.5443037974683544,
+        "recall": 0.80625,
+        "f1": 0.649874055415617,
+        "number": 160
+    },
+    "Ref_PolicyAmended": {
+        "precision": 0.3783783783783784,
+        "recall": 0.5185185185185185,
+        "f1": 0.4375,
+        "number": 27
+    },
+    "Ref_Strategy_Agreement": {
+        "precision": 0.3130434782608696,
+        "recall": 0.4444444444444444,
+        "f1": 0.3673469387755102,
+        "number": 81
+    },
+    "RegulatoryInstr": {
+        "precision": 0.36610169491525424,
+        "recall": 0.40148698884758366,
+        "f1": 0.3829787234042554,
+        "number": 269
+    },
+    "Resource_MonRevenues": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 13
+    },
+    "Resource_MonSpending": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 16
+    },
+    "Resource_Other": {
+        "precision": 0.11538461538461539,
+        "recall": 0.10843373493975904,
+        "f1": 0.11180124223602486,
+        "number": 83
+    },
+    "Reversibility_policy": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 3
+    },
+    "Subsidies_Incentives": {
+        "precision": 0.09090909090909091,
+        "recall": 0.18181818181818182,
+        "f1": 0.12121212121212123,
+        "number": 11
+    },
+    "TaxIncentives": {
+        "precision": 0.5,
+        "recall": 0.6153846153846154,
+        "f1": 0.5517241379310345,
+        "number": 13
+    },
+    "Time_Compliance": {
+        "precision": 0.3612565445026178,
+        "recall": 0.6330275229357798,
+        "f1": 0.46,
+        "number": 109
+    },
+    "Time_InEffect": {
+        "precision": 0.23076923076923078,
+        "recall": 0.12,
+        "f1": 0.15789473684210525,
+        "number": 25
+    },
+    "Time_Monitoring": {
+        "precision": 0.35135135135135137,
+        "recall": 0.3333333333333333,
+        "f1": 0.34210526315789475,
+        "number": 78
+    },
+    "Time_PolDuration": {
+        "precision": 0.2857142857142857,
+        "recall": 0.2,
+        "f1": 0.23529411764705882,
+        "number": 10
+    },
+    "Time_Resources": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "number": 9
+    },
+    "TradablePermit": {
+        "precision": 0.18181818181818182,
+        "recall": 0.15384615384615385,
+        "f1": 0.16666666666666669,
+        "number": 13
+    },
+    "Unspecified": {
+        "precision": 0.37735849056603776,
+        "recall": 0.5031446540880503,
+        "f1": 0.431266846361186,
+        "number": 159
+    },
+    "VoluntaryAgrmt": {
+        "precision": 0.42105263157894735,
+        "recall": 0.5,
+        "f1": 0.45714285714285713,
+        "number": 16
+    },
+    "overall_precision": 0.3781862745098039,
+    "overall_recall": 0.49328644501278773,
+    "overall_f1": 0.4281354051054384,
+    "overall_accuracy": 0.8470290155187955
+}

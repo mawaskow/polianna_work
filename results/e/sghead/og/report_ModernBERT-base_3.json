@@ -1,0 +1,422 @@
+{
+    "metrics": {
+        "Addressee_default": {
+            "precision": 0.46938775510204084,
+            "recall": 0.5835095137420718,
+            "f1": 0.5202639019792649,
+            "number": 473
+        },
+        "Addressee_monitored": {
+            "precision": 0.408,
+            "recall": 0.6144578313253012,
+            "f1": 0.4903846153846153,
+            "number": 83
+        },
+        "Addressee_resource": {
+            "precision": 0.2,
+            "recall": 0.041666666666666664,
+            "f1": 0.06896551724137931,
+            "number": 48
+        },
+        "Addressee_sector": {
+            "precision": 0.36627906976744184,
+            "recall": 0.50199203187251,
+            "f1": 0.4235294117647059,
+            "number": 251
+        },
+        "App_LowCarbon": {
+            "precision": 0.06557377049180328,
+            "recall": 0.09345794392523364,
+            "f1": 0.07707129094412332,
+            "number": 214
+        },
+        "App_Other": {
+            "precision": 0.27986348122866894,
+            "recall": 0.3778801843317972,
+            "f1": 0.32156862745098036,
+            "number": 217
+        },
+        "Authority_default": {
+            "precision": 0.37943262411347517,
+            "recall": 0.5219512195121951,
+            "f1": 0.43942505133470233,
+            "number": 205
+        },
+        "Authority_established": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 27
+        },
+        "Authority_legislative": {
+            "precision": 0.7090909090909091,
+            "recall": 0.5735294117647058,
+            "f1": 0.6341463414634145,
+            "number": 68
+        },
+        "Authority_monitoring": {
+            "precision": 0.5802469135802469,
+            "recall": 0.7175572519083969,
+            "f1": 0.6416382252559727,
+            "number": 131
+        },
+        "Edu_Outreach": {
+            "precision": 0.08695652173913043,
+            "recall": 0.09230769230769231,
+            "f1": 0.08955223880597016,
+            "number": 65
+        },
+        "Energy_LowCarbon": {
+            "precision": 0.5295358649789029,
+            "recall": 0.6553524804177546,
+            "f1": 0.5857642940490082,
+            "number": 383
+        },
+        "Energy_Other": {
+            "precision": 0.2625482625482625,
+            "recall": 0.44155844155844154,
+            "f1": 0.32929782082324455,
+            "number": 154
+        },
+        "Form_monitoring": {
+            "precision": 0.37884615384615383,
+            "recall": 0.42733188720173537,
+            "f1": 0.4016309887869521,
+            "number": 461
+        },
+        "Form_sanctioning": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 1
+        },
+        "FrameworkPolicy": {
+            "precision": 0.28440366972477066,
+            "recall": 0.5081967213114754,
+            "f1": 0.3647058823529412,
+            "number": 61
+        },
+        "Objective_QualIntention": {
+            "precision": 0.07729468599033816,
+            "recall": 0.128,
+            "f1": 0.09638554216867469,
+            "number": 125
+        },
+        "Objective_QualIntention_noCCM": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 47
+        },
+        "Objective_QuantTarget": {
+            "precision": 0.11224489795918367,
+            "recall": 0.2,
+            "f1": 0.1437908496732026,
+            "number": 55
+        },
+        "Objective_QuantTarget_noCCM": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 2
+        },
+        "PublicInvt": {
+            "precision": 0.13043478260869565,
+            "recall": 0.15789473684210525,
+            "f1": 0.14285714285714288,
+            "number": 19
+        },
+        "RD_D": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 5
+        },
+        "Ref_OtherPolicy": {
+            "precision": 0.3591549295774648,
+            "recall": 0.5895953757225434,
+            "f1": 0.4463894967177244,
+            "number": 173
+        },
+        "Ref_PolicyAmended": {
+            "precision": 0.5757575757575758,
+            "recall": 0.7037037037037037,
+            "f1": 0.6333333333333334,
+            "number": 27
+        },
+        "Ref_Strategy_Agreement": {
+            "precision": 0.29411764705882354,
+            "recall": 0.37037037037037035,
+            "f1": 0.3278688524590164,
+            "number": 81
+        },
+        "RegulatoryInstr": {
+            "precision": 0.2523076923076923,
+            "recall": 0.35807860262008734,
+            "f1": 0.296028880866426,
+            "number": 229
+        },
+        "Resource_MonRevenues": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 8
+        },
+        "Resource_MonSpending": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 15
+        },
+        "Resource_Other": {
+            "precision": 0.25,
+            "recall": 0.23529411764705882,
+            "f1": 0.24242424242424243,
+            "number": 119
+        },
+        "Reversibility_policy": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 3
+        },
+        "Subsidies_Incentives": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 14
+        },
+        "TaxIncentives": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 9
+        },
+        "Tech_LowCarbon": {
+            "precision": 0.34647302904564314,
+            "recall": 0.35683760683760685,
+            "f1": 0.3515789473684211,
+            "number": 468
+        },
+        "Tech_Other": {
+            "precision": 0.1928374655647383,
+            "recall": 0.40229885057471265,
+            "f1": 0.260707635009311,
+            "number": 174
+        },
+        "Time_Compliance": {
+            "precision": 0.273972602739726,
+            "recall": 0.5405405405405406,
+            "f1": 0.36363636363636365,
+            "number": 74
+        },
+        "Time_InEffect": {
+            "precision": 0.1111111111111111,
+            "recall": 0.07692307692307693,
+            "f1": 0.09090909090909093,
+            "number": 13
+        },
+        "Time_Monitoring": {
+            "precision": 0.21052631578947367,
+            "recall": 0.19672131147540983,
+            "f1": 0.20338983050847456,
+            "number": 61
+        },
+        "Time_PolDuration": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 4
+        },
+        "Time_Resources": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 6
+        },
+        "TradablePermit": {
+            "precision": 0.0625,
+            "recall": 0.08333333333333333,
+            "f1": 0.07142857142857144,
+            "number": 12
+        },
+        "Unspecified": {
+            "precision": 0.44879518072289154,
+            "recall": 0.596,
+            "f1": 0.5120274914089347,
+            "number": 250
+        },
+        "VoluntaryAgrmt": {
+            "precision": 0.36363636363636365,
+            "recall": 0.3076923076923077,
+            "f1": 0.33333333333333337,
+            "number": 13
+        }
+    },
+    "counts": {
+        "reals": {
+            "O": 30295,
+            "B-Energy_LowCarbon": 381,
+            "I-Energy_LowCarbon": 545,
+            "I-App_LowCarbon": 285,
+            "B-Energy_Other": 154,
+            "I-Energy_Other": 90,
+            "I-App_Other": 277,
+            "I-Addressee_sector": 335,
+            "B-Addressee_default": 471,
+            "I-Addressee_default": 622,
+            "I-Tech_LowCarbon": 639,
+            "B-Authority_default": 205,
+            "B-Ref_OtherPolicy": 172,
+            "I-Ref_OtherPolicy": 903,
+            "B-Unspecified": 248,
+            "I-Unspecified": 231,
+            "B-Tech_Other": 164,
+            "I-Tech_Other": 191,
+            "B-App_Other": 203,
+            "B-App_LowCarbon": 193,
+            "B-Tech_LowCarbon": 343,
+            "B-Objective_QualIntention": 95,
+            "I-Objective_QualIntention": 620,
+            "B-FrameworkPolicy": 60,
+            "B-Addressee_sector": 235,
+            "B-Time_Compliance": 74,
+            "I-Time_Compliance": 213,
+            "I-Authority_default": 122,
+            "B-RegulatoryInstr": 221,
+            "I-RegulatoryInstr": 252,
+            "B-Reversibility_policy": 3,
+            "B-Resource_Other": 119,
+            "I-Resource_Other": 174,
+            "B-Time_Monitoring": 59,
+            "B-Form_monitoring": 452,
+            "I-Form_monitoring": 664,
+            "I-FrameworkPolicy": 196,
+            "B-Edu_Outreach": 63,
+            "I-Edu_Outreach": 124,
+            "B-Objective_QuantTarget": 33,
+            "I-Objective_QuantTarget": 254,
+            "B-Authority_monitoring": 131,
+            "I-Time_Monitoring": 216,
+            "B-TradablePermit": 11,
+            "I-TradablePermit": 44,
+            "B-Objective_QualIntention_noCCM": 34,
+            "I-Objective_QualIntention_noCCM": 202,
+            "B-TaxIncentives": 9,
+            "I-TaxIncentives": 13,
+            "B-Addressee_monitored": 81,
+            "I-Addressee_monitored": 79,
+            "B-Addressee_resource": 48,
+            "I-Addressee_resource": 46,
+            "B-Resource_MonSpending": 15,
+            "I-Resource_MonSpending": 4,
+            "B-Time_Resources": 6,
+            "I-Authority_monitoring": 55,
+            "B-Authority_legislative": 68,
+            "I-Authority_legislative": 33,
+            "B-Time_InEffect": 13,
+            "I-Time_InEffect": 87,
+            "I-Time_Resources": 31,
+            "B-VoluntaryAgrmt": 13,
+            "I-VoluntaryAgrmt": 11,
+            "B-RD_D": 5,
+            "I-RD_D": 11,
+            "B-Subsidies_Incentives": 14,
+            "I-Subsidies_Incentives": 2,
+            "B-Ref_Strategy_Agreement": 77,
+            "B-PublicInvt": 19,
+            "B-Time_PolDuration": 4,
+            "I-Time_PolDuration": 19,
+            "I-Ref_Strategy_Agreement": 275,
+            "I-PublicInvt": 32,
+            "B-Objective_QuantTarget_noCCM": 2,
+            "I-Objective_QuantTarget_noCCM": 10,
+            "B-Ref_PolicyAmended": 27,
+            "I-Ref_PolicyAmended": 144,
+            "B-Authority_established": 27,
+            "I-Authority_established": 21,
+            "B-Form_sanctioning": 1,
+            "I-Form_sanctioning": 1,
+            "B-Resource_MonRevenues": 8,
+            "I-Resource_MonRevenues": 15,
+            "I-Reversibility_policy": 10
+        },
+        "preds": {
+            "O": 31149,
+            "B-Energy_LowCarbon": 474,
+            "I-Energy_LowCarbon": 466,
+            "B-App_LowCarbon": 305,
+            "B-Addressee_sector": 344,
+            "B-Tech_Other": 363,
+            "B-Energy_Other": 259,
+            "I-Tech_Other": 172,
+            "B-Tech_LowCarbon": 482,
+            "I-App_LowCarbon": 200,
+            "I-Energy_Other": 62,
+            "B-Addressee_default": 588,
+            "I-Addressee_default": 469,
+            "B-Objective_QuantTarget": 98,
+            "I-Objective_QuantTarget": 258,
+            "B-RegulatoryInstr": 325,
+            "B-Authority_default": 282,
+            "I-RegulatoryInstr": 108,
+            "B-Unspecified": 332,
+            "B-Ref_OtherPolicy": 284,
+            "B-App_Other": 293,
+            "I-Tech_LowCarbon": 341,
+            "I-Addressee_sector": 267,
+            "B-Time_Compliance": 146,
+            "B-Objective_QualIntention": 207,
+            "I-Time_Compliance": 198,
+            "B-Authority_monitoring": 162,
+            "I-Ref_OtherPolicy": 798,
+            "I-Unspecified": 98,
+            "B-Resource_Other": 112,
+            "I-Resource_Other": 38,
+            "B-Form_monitoring": 520,
+            "B-FrameworkPolicy": 109,
+            "I-Objective_QualIntention": 357,
+            "I-FrameworkPolicy": 195,
+            "I-App_Other": 150,
+            "B-Addressee_monitored": 125,
+            "I-Form_monitoring": 395,
+            "I-Authority_default": 121,
+            "B-Objective_QualIntention_noCCM": 58,
+            "I-Objective_QualIntention_noCCM": 82,
+            "B-TaxIncentives": 10,
+            "B-Time_Monitoring": 57,
+            "I-Addressee_monitored": 74,
+            "B-Resource_MonSpending": 34,
+            "B-Time_PolDuration": 20,
+            "I-Time_PolDuration": 37,
+            "I-Time_Monitoring": 96,
+            "I-Authority_monitoring": 28,
+            "B-Authority_legislative": 55,
+            "B-Reversibility_policy": 38,
+            "I-Reversibility_policy": 43,
+            "B-Time_InEffect": 9,
+            "I-Time_InEffect": 57,
+            "B-Edu_Outreach": 69,
+            "I-Edu_Outreach": 72,
+            "B-TradablePermit": 16,
+            "I-TradablePermit": 7,
+            "I-Authority_legislative": 19,
+            "B-VoluntaryAgrmt": 11,
+            "I-VoluntaryAgrmt": 9,
+            "B-Ref_Strategy_Agreement": 102,
+            "B-Addressee_resource": 10,
+            "B-Subsidies_Incentives": 5,
+            "B-PublicInvt": 23,
+            "I-Ref_Strategy_Agreement": 69,
+            "I-PublicInvt": 14,
+            "I-Resource_MonSpending": 3,
+            "B-Ref_PolicyAmended": 33,
+            "I-Ref_PolicyAmended": 119,
+            "I-Addressee_resource": 2,
+            "B-Time_Resources": 6,
+            "I-Time_Resources": 7,
+            "B-Resource_MonRevenues": 5,
+            "I-Resource_MonRevenues": 3
+        }
+    }
+}

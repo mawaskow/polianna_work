@@ -1,0 +1,24 @@
+{
+    "Instrumenttypes": {
+        "precision": 0.4246376811594203,
+        "recall": 0.5086805555555556,
+        "f1": 0.46287519747235384,
+        "number": 576
+    },
+    "Policydesigncharacteristics": {
+        "precision": 0.5775028991109393,
+        "recall": 0.6806378132118451,
+        "f1": 0.6248431618569636,
+        "number": 2195
+    },
+    "Technologyandapplicationspecificity": {
+        "precision": 0.46702453987730064,
+        "recall": 0.602970297029703,
+        "f1": 0.526361279170268,
+        "number": 1010
+    },
+    "overall_precision": 0.5230299061340319,
+    "overall_recall": 0.6336947897381645,
+    "overall_f1": 0.573068643865104,
+    "overall_accuracy": 0.8566162547024516
+}
