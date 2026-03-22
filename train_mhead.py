@@ -4,7 +4,7 @@ For use in subprocess to train the mhead models in loops without memory leakage 
 import os, json, sys, time, gc
 import torch
 from mhead_ner_ft import finetune_mhead_model
-from create_datasets import get_label_set, CLASS_WEIGHTS
+from create_datasets import get_label_set
 from auxil import HYPERPARAM_DCT
 
 params = HYPERPARAM_DCT["mhead"]
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     dsdct_dir = sys.argv[5]
     label_list = get_label_set(mode, "mhead")
     if extra['weight'] == True:
-        extra['weight'] = CLASS_WEIGHTS[mode] # need to create in-function weight calculation 
+        #extra['weight'] = CLASS_WEIGHTS[mode] # need to create in-function weight calculation 
         params[mode][model_name]['lr'] = params[mode][model_name]['lr']/2
     if extra['sent'] == True:
         params[mode][model_name]["batch_size"] = params[mode][model_name]["batch_size"]*2

@@ -22,7 +22,7 @@ import time
 import json
 import evaluate
 import tqdm
-from create_datasets import get_label_set, calculate_wgts_from_dataset, ORIG_SPAN_WEIGHTS, CLASS_WEIGHTS
+from create_datasets import get_label_set, calculate_wgts_from_dataset, ORIG_SPAN_WEIGHTS
 from auxil import bio_fixing, convert_numpy_torch_to_python, HYPERPARAM_DCT
 
 #########################
@@ -453,8 +453,8 @@ def main():
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
-        for mode in ["a","b","c","d","e"]:
+    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
+        for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
                 if interest == "sent":

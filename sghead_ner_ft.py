@@ -15,7 +15,7 @@ from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import gc
 import tqdm
-from create_datasets import get_label_set, calculate_wgts_from_dataset, CLASS_WEIGHTS
+from create_datasets import get_label_set, calculate_wgts_from_dataset
 from auxil import bio_fixing, convert_numpy_torch_to_python
 
 #############
@@ -318,8 +318,8 @@ def main():
         finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
-        for mode in ["a","b","c","d","e"]:
+    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
+        for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
                 if interest == "sent":
