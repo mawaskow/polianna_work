@@ -1,63 +1,63 @@
 {
     "Actor": {
         "_": {
-            "precision": 0.7614896988906498,
-            "recall": 0.8144067796610169,
-            "f1": 0.787059787059787,
+            "precision": 0.7888719512195121,
+            "recall": 0.8771186440677966,
+            "f1": 0.8306581059390048,
             "number": 1180
         },
-        "overall_precision": 0.7614896988906498,
-        "overall_recall": 0.8144067796610169,
-        "overall_f1": 0.787059787059787,
-        "overall_accuracy": 0.9783550880750221
+        "overall_precision": 0.7888719512195121,
+        "overall_recall": 0.8771186440677966,
+        "overall_f1": 0.8306581059390048,
+        "overall_accuracy": 0.9811430743885439
     },
     "InstrumentType": {
         "_": {
-            "precision": 0.33548387096774196,
-            "recall": 0.4173354735152488,
-            "f1": 0.37195994277539346,
+            "precision": 0.432,
+            "recall": 0.5200642054574639,
+            "f1": 0.471959213401311,
             "number": 623
         },
-        "overall_precision": 0.33548387096774196,
-        "overall_recall": 0.4173354735152488,
-        "overall_f1": 0.37195994277539346,
-        "overall_accuracy": 0.9572931187428716
+        "overall_precision": 0.432,
+        "overall_recall": 0.5200642054574639,
+        "overall_f1": 0.471959213401311,
+        "overall_accuracy": 0.965276897731593
     },
     "Objective": {
         "_": {
-            "precision": 0.09523809523809523,
-            "recall": 0.09090909090909091,
-            "f1": 0.09302325581395349,
+            "precision": 0.13962264150943396,
+            "recall": 0.16818181818181818,
+            "f1": 0.15257731958762885,
             "number": 220
         },
-        "overall_precision": 0.09523809523809523,
-        "overall_recall": 0.09090909090909091,
-        "overall_f1": 0.09302325581395349,
-        "overall_accuracy": 0.955797744265619
+        "overall_precision": 0.13962264150943396,
+        "overall_recall": 0.16818181818181818,
+        "overall_f1": 0.15257731958762885,
+        "overall_accuracy": 0.9633253073121277
     },
     "Resource": {
         "_": {
-            "precision": 0.0,
-            "recall": 0.0,
-            "f1": 0.0,
+            "precision": 0.75,
+            "recall": 0.08181818181818182,
+            "f1": 0.14754098360655737,
             "number": 110
         },
-        "overall_precision": 0.0,
-        "overall_recall": 0.0,
-        "overall_f1": 0.0,
-        "overall_accuracy": 0.9909517171461159
+        "overall_precision": 0.75,
+        "overall_recall": 0.08181818181818182,
+        "overall_f1": 0.14754098360655737,
+        "overall_accuracy": 0.9913572424280827
     },
     "Time": {
         "_": {
-            "precision": 0.28488372093023256,
-            "recall": 0.23557692307692307,
-            "f1": 0.2578947368421053,
+            "precision": 0.46875,
+            "recall": 0.4326923076923077,
+            "f1": 0.45,
             "number": 208
         },
-        "overall_precision": 0.28488372093023256,
-        "overall_recall": 0.23557692307692307,
-        "overall_f1": 0.2578947368421053,
-        "overall_accuracy": 0.9870231909770625
+        "overall_precision": 0.46875,
+        "overall_recall": 0.4326923076923077,
+        "overall_f1": 0.45,
+        "overall_accuracy": 0.989532378659232
     },
-    "overall_f1": 0.30193547822101324
+    "overall_f1": 0.34456465355371446
 }

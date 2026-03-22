@@ -1,0 +1,39 @@
+{
+    "Policydesigncharacteristics": {
+        "_": {
+            "precision": 0.5276911076443058,
+            "recall": 0.5696842105263158,
+            "f1": 0.5478841870824054,
+            "number": 2375
+        },
+        "overall_precision": 0.5276911076443058,
+        "overall_recall": 0.5696842105263158,
+        "overall_f1": 0.5478841870824054,
+        "overall_accuracy": 0.8918610606695535
+    },
+    "Technologyandapplicationspecificity": {
+        "_": {
+            "precision": 0.40756302521008403,
+            "recall": 0.4794069192751236,
+            "f1": 0.44057532172596514,
+            "number": 1214
+        },
+        "overall_precision": 0.40756302521008403,
+        "overall_recall": 0.4794069192751236,
+        "overall_f1": 0.44057532172596514,
+        "overall_accuracy": 0.954323229501327
+    },
+    "Instrumenttypes": {
+        "_": {
+            "precision": 0.37755102040816324,
+            "recall": 0.24633821571238348,
+            "f1": 0.29814665592264306,
+            "number": 751
+        },
+        "overall_precision": 0.37755102040816324,
+        "overall_recall": 0.24633821571238348,
+        "overall_f1": 0.29814665592264306,
+        "overall_accuracy": 0.9651022023560087
+    },
+    "overall_f1": 0.47531477944077655
+}

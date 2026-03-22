@@ -10,7 +10,7 @@ from auxil import HYPERPARAM_DCT
 params = HYPERPARAM_DCT["mhead"]
 extra = {
             "quant": True,
-            "weight": True,
+            "weight": False,
             "over": False,
             "sent": False
         }

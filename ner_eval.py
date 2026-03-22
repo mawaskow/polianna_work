@@ -401,10 +401,11 @@ def main():
     interest = 'og'
     results_dir = f"{cwd}/results"
     # get_results > prettify_results > consolidate_models > display_mdlrpt
-    what_to_do = "display_mdlrpt"#"consolidate_models"#"prettify_results"#"get_results"#"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
+    #"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
+    what_to_do = "display_mdlrpt"
     ######################################################
     if what_to_do == "get_results":
-        for htype in ['sghead']:#, 'mhead']:
+        for htype in ['mhead']:#, 'mhead']:
             for mode in ["a","b","c","d","e"]:
                 if interest == "sent":
                     dsdcts_dir = f"{cwd}/inputs/{mode}/{interest}/{htype}_dsdcts"# if sent
@@ -424,7 +425,7 @@ def main():
                         with open(f"{results_dir}/{mode}/{htype}/{interest}/randp_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(randp, f, indent=4)
     elif what_to_do == "prettify_results":
-        for htype in ["sghead"]:#,'mhead']:
+        for htype in ["mhead"]:#,'mhead']:
             for mode in ["a","b","c","d","e"]:
                 for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
                     for r in list(range(5)):
@@ -441,7 +442,7 @@ def main():
                             print(f"{htype} {mode} {model_name} {r} FAILED")
                             print(e)
     elif what_to_do == "consolidate_models":
-        for htype in ['sghead']:#,'mhead']:
+        for htype in ['mhead']:#,'mhead']:
             for mode in ["a","b","c","d","e"]:
                 for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
@@ -451,9 +452,9 @@ def main():
                     with open(f"{results_dir}/{mode}/{htype}/{interest}/model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
                         json.dump(report, f, indent=4)
     elif what_to_do == "display_mdlrpt":
-        for htype in ["sghead"]:#,"mhead"]:#, 'mhead']:
-            for mode in ["e"]:#,"b","c","d","e"]:
-                for model_name in ["FacebookAI/xlm-roberta-base"]:#["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:#
+        for htype in ["mhead"]:#,"mhead"]:#, 'mhead']:
+            for mode in ["a"]:#,"b","c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base"]:#
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
                     with open(f"{results_dir}/{mode}/{htype}/{interest}/model_report_{model_name.split('/')[-1]}.json","r", encoding="utf-8") as f:
                         model_report = json.load(f)

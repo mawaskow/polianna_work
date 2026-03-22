@@ -1,0 +1,507 @@
+{
+    "Addressee_default": {
+        "_": {
+            "precision": 0.45125348189415043,
+            "recall": 0.3347107438016529,
+            "f1": 0.3843416370106762,
+            "number": 484
+        },
+        "overall_precision": 0.45125348189415043,
+        "overall_recall": 0.3347107438016529,
+        "overall_f1": 0.3843416370106762,
+        "overall_accuracy": 0.9803743539600502
+    },
+    "Addressee_monitored": {
+        "_": {
+            "precision": 0.29310344827586204,
+            "recall": 0.19540229885057472,
+            "f1": 0.23448275862068962,
+            "number": 87
+        },
+        "overall_precision": 0.29310344827586204,
+        "overall_recall": 0.19540229885057472,
+        "overall_f1": 0.23448275862068962,
+        "overall_accuracy": 0.995925874190995
+    },
+    "Addressee_resource": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 51
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.99767192810914
+    },
+    "Addressee_sector": {
+        "_": {
+            "precision": 0.40860215053763443,
+            "recall": 0.13620071684587814,
+            "f1": 0.20430107526881722,
+            "number": 279
+        },
+        "overall_precision": 0.40860215053763443,
+        "overall_recall": 0.13620071684587814,
+        "overall_f1": 0.20430107526881722,
+        "overall_accuracy": 0.9847511291148671
+    },
+    "App_LowCarbon": {
+        "_": {
+            "precision": 0.07042253521126761,
+            "recall": 0.023923444976076555,
+            "f1": 0.03571428571428572,
+            "number": 209
+        },
+        "overall_precision": 0.07042253521126761,
+        "overall_recall": 0.023923444976076555,
+        "overall_f1": 0.03571428571428572,
+        "overall_accuracy": 0.9850537784606789
+    },
+    "App_Other": {
+        "_": {
+            "precision": 0.22641509433962265,
+            "recall": 0.057692307692307696,
+            "f1": 0.09195402298850575,
+            "number": 208
+        },
+        "overall_precision": 0.22641509433962265,
+        "overall_recall": 0.057692307692307696,
+        "overall_f1": 0.09195402298850575,
+        "overall_accuracy": 0.9886855706104204
+    },
+    "Authority_default": {
+        "_": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3886255924170616,
+            "f1": 0.38954869358669836,
+            "number": 211
+        },
+        "overall_precision": 0.3904761904761905,
+        "overall_recall": 0.3886255924170616,
+        "overall_f1": 0.38954869358669836,
+        "overall_accuracy": 0.9912464496903665
+    },
+    "Authority_established": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 29
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.99883596405457
+    },
+    "Authority_legislative": {
+        "_": {
+            "precision": 0.8958333333333334,
+            "recall": 0.6323529411764706,
+            "f1": 0.7413793103448276,
+            "number": 68
+        },
+        "overall_precision": 0.8958333333333334,
+        "overall_recall": 0.6323529411764706,
+        "overall_f1": 0.7413793103448276,
+        "overall_accuracy": 0.9991153326814732
+    },
+    "Authority_monitoring": {
+        "_": {
+            "precision": 0.6204379562043796,
+            "recall": 0.6439393939393939,
+            "f1": 0.6319702602230483,
+            "number": 132
+        },
+        "overall_precision": 0.6204379562043796,
+        "overall_recall": 0.6439393939393939,
+        "overall_f1": 0.6319702602230483,
+        "overall_accuracy": 0.9968803836662476
+    },
+    "Edu_Outreach": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 76
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9937840480514039
+    },
+    "Energy_LowCarbon": {
+        "_": {
+            "precision": 0.44651162790697674,
+            "recall": 0.5013054830287206,
+            "f1": 0.47232472324723246,
+            "number": 383
+        },
+        "overall_precision": 0.44651162790697674,
+        "overall_recall": 0.5013054830287206,
+        "overall_f1": 0.47232472324723246,
+        "overall_accuracy": 0.9854961121199423
+    },
+    "Energy_Other": {
+        "_": {
+            "precision": 0.07142857142857142,
+            "recall": 0.012987012987012988,
+            "f1": 0.02197802197802198,
+            "number": 154
+        },
+        "overall_precision": 0.07142857142857142,
+        "overall_recall": 0.012987012987012988,
+        "overall_f1": 0.02197802197802198,
+        "overall_accuracy": 0.9938073287703124
+    },
+    "Form_monitoring": {
+        "_": {
+            "precision": 0.48091603053435117,
+            "recall": 0.27631578947368424,
+            "f1": 0.350974930362117,
+            "number": 456
+        },
+        "overall_precision": 0.48091603053435117,
+        "overall_recall": 0.27631578947368424,
+        "overall_f1": 0.350974930362117,
+        "overall_accuracy": 0.9777436327233785
+    },
+    "Form_sanctioning": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 1
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9999534385621828
+    },
+    "FrameworkPolicy": {
+        "_": {
+            "precision": 0.18181818181818182,
+            "recall": 0.14492753623188406,
+            "f1": 0.16129032258064516,
+            "number": 69
+        },
+        "overall_precision": 0.18181818181818182,
+        "overall_recall": 0.14492753623188406,
+        "overall_f1": 0.16129032258064516,
+        "overall_accuracy": 0.994994645434651
+    },
+    "Objective_QualIntention": {
+        "_": {
+            "precision": 0.13245033112582782,
+            "recall": 0.19801980198019803,
+            "f1": 0.15873015873015875,
+            "number": 101
+        },
+        "overall_precision": 0.13245033112582782,
+        "overall_recall": 0.19801980198019803,
+        "overall_f1": 0.15873015873015875,
+        "overall_accuracy": 0.9811891791218513
+    },
+    "Objective_QualIntention_noCCM": {
+        "_": {
+            "precision": 0.08823529411764706,
+            "recall": 0.08333333333333333,
+            "f1": 0.08571428571428572,
+            "number": 36
+        },
+        "overall_precision": 0.08823529411764706,
+        "overall_recall": 0.08333333333333333,
+        "overall_f1": 0.08571428571428572,
+        "overall_accuracy": 0.9914326954416353
+    },
+    "Objective_QuantTarget": {
+        "_": {
+            "precision": 0.0390625,
+            "recall": 0.13157894736842105,
+            "f1": 0.060240963855421686,
+            "number": 38
+        },
+        "overall_precision": 0.0390625,
+        "overall_recall": 0.13157894736842105,
+        "overall_f1": 0.060240963855421686,
+        "overall_accuracy": 0.9856125157144853
+    },
+    "Objective_QuantTarget_noCCM": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 2
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9997206313730967
+    },
+    "PublicInvt": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 20
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9987661218978442
+    },
+    "RD_D": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 5
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9996275084974624
+    },
+    "Ref_OtherPolicy": {
+        "_": {
+            "precision": 0.7206703910614525,
+            "recall": 0.7413793103448276,
+            "f1": 0.7308781869688386,
+            "number": 174
+        },
+        "overall_precision": 0.7206703910614525,
+        "overall_recall": 0.7413793103448276,
+        "overall_f1": 0.7308781869688386,
+        "overall_accuracy": 0.9929692228896029
+    },
+    "Ref_PolicyAmended": {
+        "_": {
+            "precision": 0.045454545454545456,
+            "recall": 0.037037037037037035,
+            "f1": 0.04081632653061224,
+            "number": 27
+        },
+        "overall_precision": 0.045454545454545456,
+        "overall_recall": 0.037037037037037035,
+        "overall_f1": 0.04081632653061224,
+        "overall_accuracy": 0.997904735298226
+    },
+    "Ref_Strategy_Agreement": {
+        "_": {
+            "precision": 0.3125,
+            "recall": 0.12987012987012986,
+            "f1": 0.1834862385321101,
+            "number": 77
+        },
+        "overall_precision": 0.3125,
+        "overall_recall": 0.12987012987012986,
+        "overall_f1": 0.1834862385321101,
+        "overall_accuracy": 0.9919914326954417
+    },
+    "RegulatoryInstr": {
+        "_": {
+            "precision": 0.2727272727272727,
+            "recall": 0.23595505617977527,
+            "f1": 0.25301204819277107,
+            "number": 267
+        },
+        "overall_precision": 0.2727272727272727,
+        "overall_recall": 0.23595505617977527,
+        "overall_f1": 0.25301204819277107,
+        "overall_accuracy": 0.9852167434930391
+    },
+    "Resource_MonRevenues": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 8
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9994645434651022
+    },
+    "Resource_MonSpending": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 15
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9992317362760162
+    },
+    "Resource_Other": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 122
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9923639241979793
+    },
+    "Reversibility_policy": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 3
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9996973506541882
+    },
+    "Subsidies_Incentives": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 19
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9992782977138334
+    },
+    "TaxIncentives": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 9
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9994412627461936
+    },
+    "Tech_LowCarbon": {
+        "_": {
+            "precision": 0.18088737201365188,
+            "recall": 0.13283208020050125,
+            "f1": 0.1531791907514451,
+            "number": 399
+        },
+        "overall_precision": 0.18088737201365188,
+        "overall_recall": 0.13283208020050125,
+        "overall_f1": 0.1531791907514451,
+        "overall_accuracy": 0.9722028216231318
+    },
+    "Tech_Other": {
+        "_": {
+            "precision": 0.34210526315789475,
+            "recall": 0.1511627906976744,
+            "f1": 0.20967741935483872,
+            "number": 172
+        },
+        "overall_precision": 0.34210526315789475,
+        "overall_recall": 0.1511627906976744,
+        "overall_f1": 0.20967741935483872,
+        "overall_accuracy": 0.9916887833496298
+    },
+    "Time_Compliance": {
+        "_": {
+            "precision": 0.234375,
+            "recall": 0.20270270270270271,
+            "f1": 0.21739130434782608,
+            "number": 74
+        },
+        "overall_precision": 0.234375,
+        "overall_recall": 0.20270270270270271,
+        "overall_f1": 0.21739130434782608,
+        "overall_accuracy": 0.9932951529543232
+    },
+    "Time_InEffect": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 13
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9977417702658659
+    },
+    "Time_Monitoring": {
+        "_": {
+            "precision": 0.10204081632653061,
+            "recall": 0.08333333333333333,
+            "f1": 0.09174311926605504,
+            "number": 60
+        },
+        "overall_precision": 0.10204081632653061,
+        "overall_recall": 0.08333333333333333,
+        "overall_f1": 0.09174311926605504,
+        "overall_accuracy": 0.9950412068724682
+    },
+    "Time_PolDuration": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 4
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9994645434651022
+    },
+    "Time_Resources": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 6
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9991386134003818
+    },
+    "TradablePermit": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 16
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.998137542487312
+    },
+    "Unspecified": {
+        "_": {
+            "precision": 0.37327188940092165,
+            "recall": 0.2924187725631769,
+            "f1": 0.32793522267206476,
+            "number": 277
+        },
+        "overall_precision": 0.37327188940092165,
+        "overall_recall": 0.2924187725631769,
+        "overall_f1": 0.32793522267206476,
+        "overall_accuracy": 0.9883130791078828
+    },
+    "VoluntaryAgrmt": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 13
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9994412627461936
+    },
+    "overall_f1": 0.267811486353215
+}

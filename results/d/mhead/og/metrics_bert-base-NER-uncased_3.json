@@ -1,0 +1,135 @@
+{
+    "Actor": {
+        "_": {
+            "precision": 0.7765151515151515,
+            "recall": 0.8360522022838499,
+            "f1": 0.805184603299293,
+            "number": 1226
+        },
+        "overall_precision": 0.7765151515151515,
+        "overall_recall": 0.8360522022838499,
+        "overall_f1": 0.805184603299293,
+        "overall_accuracy": 0.9809890535696987
+    },
+    "ApplicationSpecificity": {
+        "_": {
+            "precision": 0.17048710601719197,
+            "recall": 0.2938271604938272,
+            "f1": 0.2157751586582049,
+            "number": 405
+        },
+        "overall_precision": 0.17048710601719197,
+        "overall_recall": 0.2938271604938272,
+        "overall_f1": 0.2157751586582049,
+        "overall_accuracy": 0.9663130872808292
+    },
+    "Compliance": {
+        "_": {
+            "precision": 0.4186991869918699,
+            "recall": 0.48130841121495327,
+            "f1": 0.44782608695652176,
+            "number": 428
+        },
+        "overall_precision": 0.4186991869918699,
+        "overall_recall": 0.48130841121495327,
+        "overall_f1": 0.44782608695652176,
+        "overall_accuracy": 0.9791242855758985
+    },
+    "EnergySpecificity": {
+        "_": {
+            "precision": 0.5821325648414986,
+            "recall": 0.7709923664122137,
+            "f1": 0.6633825944170771,
+            "number": 524
+        },
+        "overall_precision": 0.5821325648414986,
+        "overall_recall": 0.7709923664122137,
+        "overall_f1": 0.6633825944170771,
+        "overall_accuracy": 0.987794245858762
+    },
+    "InstrumentType": {
+        "_": {
+            "precision": 0.47430249632892807,
+            "recall": 0.4908814589665654,
+            "f1": 0.48244958924570575,
+            "number": 658
+        },
+        "overall_precision": 0.47430249632892807,
+        "overall_recall": 0.4908814589665654,
+        "overall_f1": 0.48244958924570575,
+        "overall_accuracy": 0.9722222222222222
+    },
+    "Objective": {
+        "_": {
+            "precision": 0.14705882352941177,
+            "recall": 0.22012578616352202,
+            "f1": 0.17632241813602018,
+            "number": 159
+        },
+        "overall_precision": 0.14705882352941177,
+        "overall_recall": 0.22012578616352202,
+        "overall_f1": 0.17632241813602018,
+        "overall_accuracy": 0.9719558267945365
+    },
+    "Reference": {
+        "_": {
+            "precision": 0.6036036036036037,
+            "recall": 0.7256317689530686,
+            "f1": 0.659016393442623,
+            "number": 277
+        },
+        "overall_precision": 0.6036036036036037,
+        "overall_recall": 0.7256317689530686,
+        "overall_f1": 0.659016393442623,
+        "overall_accuracy": 0.9883270367141335
+    },
+    "Resource": {
+        "_": {
+            "precision": 0.3333333333333333,
+            "recall": 0.006622516556291391,
+            "f1": 0.012987012987012988,
+            "number": 151
+        },
+        "overall_precision": 0.3333333333333333,
+        "overall_recall": 0.006622516556291391,
+        "overall_f1": 0.012987012987012988,
+        "overall_accuracy": 0.9908699021602247
+    },
+    "Reversibility": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 3
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9996851690400077
+    },
+    "TechnologySpecificity": {
+        "_": {
+            "precision": 0.4328147100424328,
+            "recall": 0.5719626168224299,
+            "f1": 0.49275362318840576,
+            "number": 535
+        },
+        "overall_precision": 0.4328147100424328,
+        "overall_recall": 0.5719626168224299,
+        "overall_f1": 0.49275362318840576,
+        "overall_accuracy": 0.9745713455390874
+    },
+    "Time": {
+        "_": {
+            "precision": 0.34285714285714286,
+            "recall": 0.24324324324324326,
+            "f1": 0.2845849802371541,
+            "number": 148
+        },
+        "overall_precision": 0.34285714285714286,
+        "overall_recall": 0.24324324324324326,
+        "overall_f1": 0.2845849802371541,
+        "overall_accuracy": 0.9886903032064323
+    },
+    "overall_f1": 0.5434146592552344
+}

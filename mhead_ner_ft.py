@@ -432,8 +432,8 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    interest= "w2"
-    
+    interest= "og"
+    '''
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
@@ -453,9 +453,9 @@ def main():
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
-        for mode in ["a"]:#,"b","c","d","e"]:
-            for r in list(range(3)):
+    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
+        for mode in ["a","b","c","d","e"]:
+            for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
                 if interest == "sent":
                     dsdct_dir = f"{cwd}/inputs/{mode}/{interest}/mhead_dsdcts"
@@ -475,6 +475,6 @@ def main():
                 print(f"\n--- Finished '{mode}' run {model_name} r{r} ---")
                 print(f'\nRun done in {round((time.time()-run_st)/60,2)} min')
                 time.sleep(2)
-    '''
+    
 if __name__=="__main__":
     main()

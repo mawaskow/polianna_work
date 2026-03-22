@@ -1,0 +1,206 @@
+{
+    "Actor": {
+        "metrics": {
+            "precision": 0.8128407026044822,
+            "recall": 0.8887417218543047,
+            "f1": 0.8490983865865233,
+            "number": 1510
+        },
+        "counts": {
+            "reals": {
+                "O": 335,
+                "B": 40,
+                "I": 65
+            },
+            "preds": {
+                "O": 340,
+                "B": 42,
+                "I": 58
+            }
+        }
+    },
+    "ApplicationSpecificity": {
+        "metrics": {
+            "precision": 0.283987915407855,
+            "recall": 0.31438127090301005,
+            "f1": 0.2984126984126984,
+            "number": 299
+        },
+        "counts": {
+            "reals": {
+                "O": 436,
+                "B": 2,
+                "I": 2
+            },
+            "preds": {
+                "O": 436,
+                "B": 2,
+                "I": 2
+            }
+        }
+    },
+    "Compliance": {
+        "metrics": {
+            "precision": 0.492436974789916,
+            "recall": 0.6053719008264463,
+            "f1": 0.5430954587581095,
+            "number": 484
+        },
+        "counts": {
+            "reals": {
+                "O": 436,
+                "B": 4
+            },
+            "preds": {
+                "O": 436,
+                "B": 4
+            }
+        }
+    },
+    "EnergySpecificity": {
+        "metrics": {
+            "precision": 0.7292225201072386,
+            "recall": 0.7391304347826086,
+            "f1": 0.7341430499325237,
+            "number": 368
+        },
+        "counts": {
+            "reals": {
+                "O": 440
+            },
+            "preds": {
+                "O": 440
+            }
+        }
+    },
+    "InstrumentType": {
+        "metrics": {
+            "precision": 0.4566003616636528,
+            "recall": 0.5507088331515813,
+            "f1": 0.49925852694018796,
+            "number": 917
+        },
+        "counts": {
+            "reals": {
+                "O": 420,
+                "B": 15,
+                "I": 5
+            },
+            "preds": {
+                "O": 423,
+                "B": 13,
+                "I": 4
+            }
+        }
+    },
+    "Objective": {
+        "metrics": {
+            "precision": 0.15987460815047022,
+            "recall": 0.25757575757575757,
+            "f1": 0.19729206963249515,
+            "number": 198
+        },
+        "counts": {
+            "reals": {
+                "O": 440
+            },
+            "preds": {
+                "O": 433,
+                "B": 3,
+                "I": 4
+            }
+        }
+    },
+    "Reference": {
+        "metrics": {
+            "precision": 0.6980392156862745,
+            "recall": 0.6568265682656826,
+            "f1": 0.67680608365019,
+            "number": 271
+        },
+        "counts": {
+            "reals": {
+                "O": 421,
+                "B": 6,
+                "I": 13
+            },
+            "preds": {
+                "O": 436,
+                "B": 2,
+                "I": 2
+            }
+        }
+    },
+    "Resource": {
+        "metrics": {
+            "precision": 0.25,
+            "recall": 0.056074766355140186,
+            "f1": 0.0916030534351145,
+            "number": 107
+        },
+        "counts": {
+            "reals": {
+                "O": 440
+            },
+            "preds": {
+                "O": 440
+            }
+        }
+    },
+    "Reversibility": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 19
+        },
+        "counts": {
+            "reals": {
+                "O": 440
+            },
+            "preds": {
+                "O": 440
+            }
+        }
+    },
+    "TechnologySpecificity": {
+        "metrics": {
+            "precision": 0.5066026410564226,
+            "recall": 0.5438144329896907,
+            "f1": 0.5245494095711623,
+            "number": 776
+        },
+        "counts": {
+            "reals": {
+                "O": 436,
+                "B": 2,
+                "I": 2
+            },
+            "preds": {
+                "O": 436,
+                "B": 2,
+                "I": 2
+            }
+        }
+    },
+    "Time": {
+        "metrics": {
+            "precision": 0.3865546218487395,
+            "recall": 0.5542168674698795,
+            "f1": 0.4554455445544555,
+            "number": 166
+        },
+        "counts": {
+            "reals": {
+                "O": 437,
+                "B": 1,
+                "I": 2
+            },
+            "preds": {
+                "O": 431,
+                "B": 1,
+                "I": 8
+            }
+        }
+    }
+}

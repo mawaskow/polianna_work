@@ -1,0 +1,700 @@
+{
+    "Addressee_default": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 599
+        },
+        "counts": {
+            "reals": {
+                "O": 463,
+                "B": 11,
+                "I": 25
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Addressee_monitored": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 126
+        },
+        "counts": {
+            "reals": {
+                "O": 484,
+                "B": 5,
+                "I": 10
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Addressee_resource": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 30
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Addressee_sector": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 300
+        },
+        "counts": {
+            "reals": {
+                "O": 483,
+                "B": 3,
+                "I": 13
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "App_LowCarbon": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 140
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "App_Other": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 157
+        },
+        "counts": {
+            "reals": {
+                "O": 493,
+                "B": 3,
+                "I": 3
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Authority_default": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 281
+        },
+        "counts": {
+            "reals": {
+                "O": 470,
+                "B": 16,
+                "I": 13
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Authority_established": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 11
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Authority_legislative": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 55
+        },
+        "counts": {
+            "reals": {
+                "O": 497,
+                "B": 1,
+                "I": 1
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Authority_monitoring": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 157
+        },
+        "counts": {
+            "reals": {
+                "O": 488,
+                "B": 7,
+                "I": 4
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Edu_Outreach": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 121
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Energy_LowCarbon": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 266
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Energy_Other": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 98
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Form_monitoring": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 476
+        },
+        "counts": {
+            "reals": {
+                "O": 495,
+                "B": 4
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Form_sanctioning": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 15
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "FrameworkPolicy": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 61
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Objective_QualIntention": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 109
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Objective_QualIntention_noCCM": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 84
+        },
+        "counts": {
+            "reals": {
+                "O": 492,
+                "B": 1,
+                "I": 6
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Objective_QuantTarget": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 10
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Objective_QuantTarget_noCCM": {
+        "metrics": {
+            "overall_precision": 0.0,
+            "overall_recall": 0.0,
+            "overall_f1": 0.0,
+            "overall_accuracy": 1.0
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "PublicInvt": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 11
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "RD_D": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 6
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Ref_OtherPolicy": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 175
+        },
+        "counts": {
+            "reals": {
+                "O": 480,
+                "B": 6,
+                "I": 13
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Ref_PolicyAmended": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 20
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Ref_Strategy_Agreement": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 77
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "RegulatoryInstr": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 429
+        },
+        "counts": {
+            "reals": {
+                "O": 481,
+                "B": 13,
+                "I": 5
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Resource_MonRevenues": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 3
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Resource_MonSpending": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 31
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Resource_Other": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 75
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Reversibility_policy": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 21
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Subsidies_Incentives": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 36
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "TaxIncentives": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 14
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Tech_LowCarbon": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 445
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Tech_Other": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 363
+        },
+        "counts": {
+            "reals": {
+                "O": 495,
+                "B": 2,
+                "I": 2
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Time_Compliance": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 67
+        },
+        "counts": {
+            "reals": {
+                "O": 493,
+                "B": 2,
+                "I": 4
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Time_InEffect": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 24
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Time_Monitoring": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 69
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Time_PolDuration": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 13
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Time_Resources": {
+        "metrics": {
+            "overall_precision": 0.0,
+            "overall_recall": 0.0,
+            "overall_f1": 0.0,
+            "overall_accuracy": 1.0
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "TradablePermit": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 49
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "Unspecified": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 253
+        },
+        "counts": {
+            "reals": {
+                "O": 497,
+                "B": 2
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    },
+    "VoluntaryAgrmt": {
+        "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 33
+        },
+        "counts": {
+            "reals": {
+                "O": 499
+            },
+            "preds": {
+                "O": 499
+            }
+        }
+    }
+}

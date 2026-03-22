@@ -1,0 +1,135 @@
+{
+    "Actor": {
+        "_": {
+            "precision": 0.8252740167633784,
+            "recall": 0.8672086720867209,
+            "f1": 0.8457218368021143,
+            "number": 1476
+        },
+        "overall_precision": 0.8252740167633784,
+        "overall_recall": 0.8672086720867209,
+        "overall_f1": 0.8457218368021143,
+        "overall_accuracy": 0.9854733309784528
+    },
+    "ApplicationSpecificity": {
+        "_": {
+            "precision": 0.2888086642599278,
+            "recall": 0.26666666666666666,
+            "f1": 0.2772963604852686,
+            "number": 300
+        },
+        "overall_precision": 0.2888086642599278,
+        "overall_recall": 0.26666666666666666,
+        "overall_f1": 0.2772963604852686,
+        "overall_accuracy": 0.9798657718120806
+    },
+    "Compliance": {
+        "_": {
+            "precision": 0.5710659898477157,
+            "recall": 0.47770700636942676,
+            "f1": 0.5202312138728323,
+            "number": 471
+        },
+        "overall_precision": 0.5710659898477157,
+        "overall_recall": 0.47770700636942676,
+        "overall_f1": 0.5202312138728323,
+        "overall_accuracy": 0.9837513246202755
+    },
+    "EnergySpecificity": {
+        "_": {
+            "precision": 0.7097625329815304,
+            "recall": 0.7598870056497176,
+            "f1": 0.7339699863574352,
+            "number": 354
+        },
+        "overall_precision": 0.7097625329815304,
+        "overall_recall": 0.7598870056497176,
+        "overall_f1": 0.7339699863574352,
+        "overall_accuracy": 0.9940612857647474
+    },
+    "InstrumentType": {
+        "_": {
+            "precision": 0.519298245614035,
+            "recall": 0.4805194805194805,
+            "f1": 0.4991568296795953,
+            "number": 924
+        },
+        "overall_precision": 0.519298245614035,
+        "overall_recall": 0.4805194805194805,
+        "overall_f1": 0.4991568296795953,
+        "overall_accuracy": 0.9632859413634758
+    },
+    "Objective": {
+        "_": {
+            "precision": 0.18085106382978725,
+            "recall": 0.2524752475247525,
+            "f1": 0.21074380165289258,
+            "number": 202
+        },
+        "overall_precision": 0.18085106382978725,
+        "overall_recall": 0.2524752475247525,
+        "overall_f1": 0.21074380165289258,
+        "overall_accuracy": 0.9634846344048039
+    },
+    "Reference": {
+        "_": {
+            "precision": 0.7205240174672489,
+            "recall": 0.6346153846153846,
+            "f1": 0.6748466257668712,
+            "number": 260
+        },
+        "overall_precision": 0.7205240174672489,
+        "overall_recall": 0.6346153846153846,
+        "overall_f1": 0.6748466257668712,
+        "overall_accuracy": 0.9885199576121512
+    },
+    "Resource": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 110
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9923172024019781
+    },
+    "Reversibility": {
+        "_": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "number": 17
+        },
+        "overall_precision": 0.0,
+        "overall_recall": 0.0,
+        "overall_f1": 0.0,
+        "overall_accuracy": 0.9969533733663016
+    },
+    "TechnologySpecificity": {
+        "_": {
+            "precision": 0.5418994413407822,
+            "recall": 0.5071895424836601,
+            "f1": 0.5239702903443619,
+            "number": 765
+        },
+        "overall_precision": 0.5418994413407822,
+        "overall_recall": 0.5071895424836601,
+        "overall_f1": 0.5239702903443619,
+        "overall_accuracy": 0.9781437654539032
+    },
+    "Time": {
+        "_": {
+            "precision": 0.3397129186602871,
+            "recall": 0.4329268292682927,
+            "f1": 0.3806970509383378,
+            "number": 164
+        },
+        "overall_precision": 0.3397129186602871,
+        "overall_recall": 0.4329268292682927,
+        "overall_f1": 0.3806970509383378,
+        "overall_accuracy": 0.9892043447545037
+    },
+    "overall_f1": 0.5848848493270308
+}
