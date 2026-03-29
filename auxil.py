@@ -1,5 +1,38 @@
 import numpy as np
 import torch
+from torch.utils.data import Sampler
+
+class TokenBasedSampler(Sampler):
+    def __init__(self, lengths, max_tokens, shuffle=True):
+        self.lengths = lengths
+        self.max_tokens = max_tokens
+        self.shuffle = shuffle
+    def __iter__(self):
+        # sorting by length
+        indices = np.argsort(self.lengths)
+        batches = []
+        current_batch = []
+        for idx in indices:
+            seq_len = self.lengths[idx]
+            # Batch token count = (max length in batch) * (number of samples)
+            # This accounts for the padding that will be added
+            potential_max_len = max(current_batch_max_len if current_batch else 0, seq_len)
+            potential_total_tokens = potential_max_len * (len(current_batch) + 1)
+            if potential_total_tokens > self.max_tokens and current_batch:
+                batches.append(current_batch)
+                current_batch = []
+            current_batch.append(idx)
+            current_batch_max_len = max([self.lengths[i] for i in current_batch])
+        if current_batch:
+            batches.append(current_batch)  
+        if self.shuffle:
+            np.random.shuffle(batches)
+        for batch in batches:
+            yield batch
+    def __len__(self):
+        # Rough estimate; can vary slightly if using dynamic logic
+        n_batches = len(self.lengths) // (self.max_tokens // np.mean(self.lengths))
+        return int(n_batches)
 
 def convert_numpy_torch_to_python(obj):
     '''

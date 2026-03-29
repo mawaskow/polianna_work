@@ -23,7 +23,8 @@ import json
 import evaluate
 import tqdm
 from create_datasets import get_label_set, calculate_wgts_from_dataset, ORIG_SPAN_WEIGHTS
-from auxil import bio_fixing, convert_numpy_torch_to_python, HYPERPARAM_DCT
+from auxil import TokenBasedSampler, bio_fixing, convert_numpy_torch_to_python, HYPERPARAM_DCT
+from oversampling import oversample_ds
 
 #########################
 # classes and functions #
@@ -35,10 +36,11 @@ class MheadDataset(Dataset):
         self.tokenizer = tokenizer
         self.label2id = label2id
         self.max_length = max_length
-        self.chunk_overlap = chunk_overlap
+        self.chunk_overlap = chunk_overlap if chunk_overlap!= max_length else int(max_length/2)
         self.heads = head_lst
         # prechunk 
         self.items = []
+        self.lengths = []
         for entry in hf_dataset:
             tokens = entry["tokens"]
             ner_tag_dct = {head:entry["labels_"+head] for head in self.heads}
@@ -60,11 +62,13 @@ class MheadDataset(Dataset):
                             label_ids.append(-100)
                         previous_word_idx = word_idx
                     head_lbl_dct[head] = label_ids
-                self.items.append({
+                item = {
                     "input_ids": torch.tensor(tokenized_inputs["input_ids"][i]),
                     "attention_mask": torch.tensor(tokenized_inputs["attention_mask"][i]),
                     "labels": {head:torch.tensor(head_lbl_dct[head]) for head in self.heads}
-                })
+                }
+                self.items.append(item)
+                self.lengths.append(len(item["input_ids"]))
     def calculate_tag_weights(self):
         weights_dct = {}
         for head in self.heads:
@@ -257,6 +261,8 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     heads = model.heads
     pred_coll = {name: [] for name in heads}
     real_coll = {name: [] for name in heads}
+    input_coll = []
+    first_head = heads[0]
     with torch.no_grad():
         for batch in dataloader:
             batch = {
@@ -268,6 +274,7 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
             total_eval_loss += loss.item()
             predictions= {head: torch.argmax(logits[head], dim=-1).cpu().numpy() for head in logits}
             labels = {head: batch["labels"][head].cpu().numpy() for head in batch["labels"]}
+            batch_inputs = batch["input_ids"].cpu().numpy()
             for head in predictions:
                 # for this batch, for this head in the batch
                 # records the list of prediction labels in sentence list form
@@ -275,19 +282,23 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
                 head_labels = []
                 # predictions is list of lists of sentence labels from batch
                 # preds is the list of labels for a single sentence
-                for preds, labs in zip(predictions[head], labels[head]):
+                for preds, labs, inps in zip(predictions[head], labels[head], batch_inputs):
                     # art_preds holds the label(not id) versions of the predictions
                     # for each sentence
                     art_preds = []
                     art_labs = []
+                    art_inps = []
                     # for p,s [each label]
-                    for p, l in zip(preds, labs):
+                    for p, l, i in zip(preds, labs, inps):
                         if l != -100:
                             art_preds.append(id2label[p])
                             art_labs.append(id2label[l])
+                            art_inps.append(i)
                     # now appends the sentence/list of labels to head_preds list
                     head_preds.append(art_preds)
                     head_labels.append(art_labs)
+                    if head == first_head:
+                        input_coll.append(art_inps)
                 fixed_predictions = bio_fixing("mhead", head_preds)
                 # for pred_coll's head list, extend with the list of lists
                 # not append bc that makes lists of lists of lists
@@ -297,7 +308,7 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
         meta_metrics[head] = seqeval.compute(predictions=pred_coll[head], references=real_coll[head])
     meta_metrics["overall_f1"] = overall_seqeval_f1(meta_metrics, heads)
     if return_rnp:
-        return meta_metrics, pred_coll, real_coll
+        return meta_metrics, pred_coll, real_coll, input_coll
     meta_metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     return meta_metrics
 
@@ -337,18 +348,24 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    train_dataset = MheadDataset(dataset_dict["train"], head_lst, tokenizer, label2id, max_length=params['max_length'])
+    train_dataset = dataset_dict["train"]
+    if extra["over"]:
+        train_dataset = oversample_ds(train_dataset, "mhead", head_lst)
+    train_dataset = MheadDataset(train_dataset, head_lst, tokenizer, label2id, max_length=params['max_length'])
     dev_dataset = MheadDataset(dataset_dict["dev"], head_lst, tokenizer, label2id, max_length=params['max_length'])
+    train_sampler = TokenBasedSampler(train_dataset.lengths, max_tokens=(params['batch_size']*params['max_length']))
     train_loader = DataLoader(
         train_dataset,
-        batch_size=params["batch_size"],
-        shuffle=True,
+        #batch_size=params["batch_size"],
+        batch_sampler = train_sampler,
+        #shuffle=True,
         collate_fn=lambda b: mhead_collate(b, tokenizer.pad_token_id)
     )
     dev_loader = DataLoader(
         dev_dataset,
-        batch_size=params["batch_size"],
-        shuffle=False,
+        #batch_size=params["batch_size"],
+        batch_sampler = TokenBasedSampler(dev_dataset.lengths, max_tokens=(params['batch_size']*params['max_length'])),
+        #shuffle=False,
         collate_fn=lambda b: mhead_collate(b, tokenizer.pad_token_id)
     )
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -369,7 +386,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     num_training_steps = params["num_epochs"] * len(train_loader)
     scheduler = get_linear_schedule_with_warmup(
         optimizer,
-        num_warmup_steps=params["num_warmup_steps"],
+        num_warmup_steps=params["num_warmup_steps"],#int(num_training_steps * 0.1),#
         num_training_steps=num_training_steps
     )
     # adding early stopping
@@ -432,7 +449,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    interest= "og"
+    interest= "og_lrdiv2"
     '''
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:
@@ -441,15 +458,28 @@ def main():
         label_list = get_label_set(mode, "mhead")
         extra = {
             "quant": True,
-            "weight": True,
+            "weight": False,
             "over": False,
-            "sent": False
+            "sent": True
         }
         model_name = "microsoft/deberta-v3-base"
-        params = HYPERPARAM_DCT["mhead"][mode][model_name]
-        #if interest[0]=="w":
-        #    params['lr'] = params['lr']/10
         r = 0
+        params = HYPERPARAM_DCT["mhead"][mode][model_name]
+        if extra['sent'] and not extra['over']:
+            params['max_length'] = int(params['max_length']/4)
+            #params['weight_decay'] = params['weight_decay']*15
+            #params['dropout'] = params['dropout']*5
+            params['batch_size'] = params['batch_size']*2
+        if extra['over'] and not extra['sent']:
+            params['weight_decay'] = params['weight_decay']*10
+            params['dropout'] = params['dropout']*2
+            #params['batch_size'] = params['batch_size']*2
+        if extra['sent'] and extra['over']:
+            params['max_length'] = int(params['max_length']/4)
+            params['weight_decay'] = params['weight_decay']*10
+            params['dropout'] = params['dropout']*2
+            params['batch_size'] = params['batch_size']*2
+        #params['lr'] = params['lr']/2 #accounting for train set being smaller 
         finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########

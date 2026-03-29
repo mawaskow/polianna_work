@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 import os
 from datasets import Dataset, DatasetDict, load_from_disk
-from oversampling import oversample_ds
+#from oversampling import oversample_ds
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from collections import Counter
 import nltk
@@ -545,11 +545,6 @@ def calculate_wgts_from_dataset(dataset, label_lst, htype):
             final_weights.append(weight)
         return final_weights
 
-
-def create_oversampled_dsdcts(mode, htype, r, dsdctdir):
-    oversample_ds()
-    print(0)
-
 ########
 # main #
 ########
@@ -566,7 +561,7 @@ def main():
         print(f"Made {mode} datasets")
     print("Made datasets")
     '''
-    ''''''
+    '''
     ### creates the dataset dictionaries for each r split from the sghead and mhead datasets
     for mode in ["a","b", "c", "d", "e"]:
         print(mode)
@@ -577,7 +572,7 @@ def main():
         create_stratified_dsdcts(sghead_ds, mhead_ds, mode, cwd+f"/inputs/{mode}/", 5)
         print(f"Made {mode} dsdcts")
     print("Made datasetdcts")
-    
+    '''
     #### for hyperparameter tuning only
     '''
     
@@ -599,16 +594,20 @@ def main():
         create_ds(mode, "mhead", pol_dir, cwd+f"/inputs/{mode}/{interest}/mhead_ds", True)
         print(f"Made {mode} datasets")
     print("Made datasets")
+    '''
+    ''''''
     ### creates the dataset dictionaries for each r split from the sghead and mhead datasets
+    interest = "sent"
     for mode in ["a","b", "c", "d", "e"]:
         print(mode)
         sghead_ds = load_from_disk(cwd+f"/inputs/{mode}/{interest}/sghead_ds")
-        create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/{interest}/sghead_dsdcts", list(range(5)))
+        #create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/{interest}/sghead_dsdcts", list(range(5)))
         mhead_ds = load_from_disk(cwd+f"/inputs/{mode}/{interest}/mhead_ds")
-        create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/{interest}/mhead_dsdcts", list(range(5)))
+        #create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/{interest}/mhead_dsdcts", list(range(5)))
+        create_stratified_dsdcts(sghead_ds, mhead_ds, mode, f"{cwd}/inputs/{mode}/{interest}/", n_splits = 5)
         print(f"Made {mode} dsdcts")
     print("Made datasetdcts")
-    '''
+    
 
 
 if __name__=="__main__":

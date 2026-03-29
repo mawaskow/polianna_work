@@ -102,7 +102,7 @@ def evaluate_model(mode, htype, model_name, model_save_addr, dsdct_dir, r, batch
         model.print_trainable_parameters()
         #model.base_model.model.classifier.to(dev)
         model.to(compute_dtype)
-        metrics, preds, reals = sghead_evaluate_model(model, test_loader, dev, id2label, return_rnp=True)
+        metrics, preds, reals, input_ids = sghead_evaluate_model(model, test_loader, dev, id2label, return_rnp=True)
     elif htype == "mhead":
         test_dataset = MheadDataset(dataset_dict["test"], head_lst, tokenizer, label2id, max_length=max_length)
         test_loader = DataLoader(
@@ -114,12 +114,13 @@ def evaluate_model(mode, htype, model_name, model_save_addr, dsdct_dir, r, batch
         model = MheadTokenClassifier(model_name, head_lst, dropout=dropout, quant=quant).to(dev)
         model.load_state_dict(torch.load(model_addr+"/model.pt", weights_only=True), strict=False)
         model.eval()
-        metrics, preds, reals = mhead_evaluate_model(model, test_loader, dev, id2label, return_rnp=True)
-    return metrics, preds, reals
+        metrics, preds, reals, input_ids = mhead_evaluate_model(model, test_loader, dev, id2label, return_rnp=True)
+    words = [tokenizer.convert_ids_to_tokens(sent) for sent in input_ids]
+    return metrics, preds, reals, words
 
 #all_preds, all_labels, all_inputids
 
-def tokf1_calc(htype, randp):
+def tokf1_calc(htype, randp, adj=False):
     if htype == "sghead":
         all_reals = []
         all_preds = []
@@ -128,11 +129,30 @@ def tokf1_calc(htype, randp):
             preds = [ent[1] for ent in art]
             all_reals += reals
             all_preds += preds
-        scores = {
-            "micro_f1":f1_score(all_reals, all_preds, average='micro'),
-            "macro_f1":f1_score(all_reals, all_preds, average="macro"),
-            "weighted_f1":f1_score(all_reals, all_preds, average="weighted")
-        }
+        if not adj:
+            scores = {
+                "micro_f1":f1_score(all_reals, all_preds, average='micro'),
+                "macro_f1":f1_score(all_reals, all_preds, average="macro"),
+                "weighted_f1":f1_score(all_reals, all_preds, average="weighted")
+            }
+        elif adj:
+            cl_reals = []
+            for lbl in all_reals:
+                if lbl!="O":
+                    cl_reals.append(lbl[2:])
+                else:
+                    cl_reals.append("O")
+            cl_preds = []
+            for lbl in all_preds:
+                if lbl!="O":
+                    cl_preds.append(lbl[2:])
+                else:
+                    cl_preds.append("O")
+            scores = {
+                "micro_f1":f1_score(cl_reals, cl_preds, average='micro'),
+                "macro_f1":f1_score(cl_reals, cl_preds, average="macro"),
+                "weighted_f1":f1_score(cl_reals, cl_preds, average="weighted")
+            }
         return scores
     elif htype == "mhead":
         label_lst = list(randp)
@@ -145,11 +165,30 @@ def tokf1_calc(htype, randp):
                 preds = [ent[1] for ent in art]
                 all_reals += reals
                 all_preds += preds
-            scores_dct[head] = {
-                "micro_f1":f1_score(all_reals, all_preds, average='micro'),
-                "macro_f1":f1_score(all_reals, all_preds, average="macro"),
-                "weighted_f1":f1_score(all_reals, all_preds, average="weighted")
-            }
+            if not adj:
+                scores_dct[head] = {
+                    "micro_f1":f1_score(all_reals, all_preds, average='micro'),
+                    "macro_f1":f1_score(all_reals, all_preds, average="macro"),
+                    "weighted_f1":f1_score(all_reals, all_preds, average="weighted")
+                }
+            elif adj:
+                cl_reals = []
+                for lbl in all_reals:
+                    if lbl!="O":
+                        cl_reals.append("X")
+                    else:
+                        cl_reals.append("O")
+                cl_preds = []
+                for lbl in all_preds:
+                    if lbl!="O":
+                        cl_preds.append("X")
+                    else:
+                        cl_preds.append("O")
+                scores_dct[head] = {
+                    "micro_f1":f1_score(cl_reals, cl_preds, average='micro'),
+                    "macro_f1":f1_score(cl_reals, cl_preds, average="macro"),
+                    "weighted_f1":f1_score(cl_reals, cl_preds, average="weighted")
+                }
         return scores_dct
 
 def shortestvis_tokf1(results_dict):
@@ -188,22 +227,22 @@ def shortestvis(results_dict):
 # main #
 ########
 
-def prettify_randp(htype, reals, preds):
+def prettify_randp(htype, reals, preds, inputs):
     if htype == "sghead":
         randp = []
         for artind in range(len(reals)):
             arttrk = []
             for tokid in range(len(preds[artind])):
-                arttrk.append((reals[artind][tokid], preds[artind][tokid]))
+                arttrk.append((inputs[artind][tokid], reals[artind][tokid], preds[artind][tokid]))
             randp.append(arttrk)
     elif htype == "mhead":
         heads = list(reals)
         randp = {head:[] for head in heads}
         for head in heads:
-            for artind in range(len(reals[head][0])):
+            for artind in range(len(reals[head])):
                 arttrk = []
-                for tokid in range(len(preds[head][0][artind])):
-                    arttrk.append((reals[head][0][artind][tokid], preds[head][0][artind][tokid]))
+                for tokid in range(len(preds[head][artind])):
+                    arttrk.append((inputs[artind][tokid], reals[head][artind][tokid], preds[head][artind][tokid]))
                 randp[head].append(arttrk)
     return randp
 
@@ -235,8 +274,8 @@ def count_labels(htype, randp):
         all_reals = []
         all_preds = []
         for art in randp:
-            reals = [ent[0] for ent in art]
-            preds = [ent[1] for ent in art]
+            reals = [ent[1] for ent in art]
+            preds = [ent[2] for ent in art]
             all_reals += reals
             all_preds += preds
         count_dct = {
@@ -251,8 +290,8 @@ def count_labels(htype, randp):
             all_reals = []
             all_preds = []
             for art in randp[head]:
-                reals = [ent[0] for ent in art]
-                preds = [ent[1] for ent in art]
+                reals = [ent[1] for ent in art]
+                preds = [ent[2] for ent in art]
                 all_reals += reals
                 all_preds += preds
             count_dct[head] = {
@@ -343,22 +382,25 @@ def make_model_report(mode, htype, results_file_prefix, r_lst):
 def newmetrics_make_model_report(mode, htype, results_file_prefix, r_lst):
     heads = get_label_set(mode, "mhead")
     report = {}
+    if htype == "sghead":
+        report = {key: [] for key in ["micro_f1","macro_f1","weighted_f1"]}
+    elif htype == "mhead":
+        report = {head: {key: [] for key in ["micro_f1","macro_f1","weighted_f1"]} for head in heads}
     for r in r_lst:
         with open(f"{results_file_prefix}{r}.json", "r", encoding="utf-8") as f:
             results_dct = json.load(f)
             if htype == "sghead":
-                for head in list(results_dct['metrics']):
-                    for mtr in list(results_dct['metrics'][head]):
-                        report['metrics'][head][mtr].append(results_dct['metrics'][head][mtr])
+                for mtr in list(results_dct):
+                    report[mtr].append(results_dct[mtr])
             elif htype == "mhead":
                 for head in list(results_dct):
-                    for mtr in list(results_dct[head]['metrics']):
+                    for mtr in list(results_dct[head]):
                         try:
-                            report[head]['metrics'][mtr].append(results_dct[head]['metrics'][mtr])
+                            report[head][mtr].append(results_dct[head][mtr])
                         except:
                             metric = mtr.split("_")[-1]
                             if metric != "accuracy":
-                                report[head]['metrics'][mtr.split("_")[-1]].append(results_dct[head]['metrics'][mtr])
+                                report[head][mtr.split("_")[-1]].append(results_dct[head]['metrics'][mtr])
                             print(f"Had to accomodate {mtr} metric type")
     return report
 
@@ -395,18 +437,36 @@ def display_model_report(mode, htype, model_report):
             for tag in ["B", "I", "O"]:
                 print(f"\t{tag}: real vs pred")
                 print("\t\t",round(np.mean(model_report[head]['counts']['reals'][tag])), round(np.mean(model_report[head]['counts']['preds'][tag])))
-                
+
+def display_new_model_report(mode, htype, model_report):
+    if htype == "sghead":
+        print("\nMetrics")
+        for mtr in list(model_report):
+            print(f"\t{mtr}")
+            print("\t\tAverage", round(np.mean(model_report[mtr])*100,2))
+            print("\t\tSD", round(np.std(model_report[mtr])*100,2))
+    elif htype == "mhead":
+        for head in list(model_report):
+            print("\n",head)
+            print("\tMetrics")
+            for mtr in list(model_report[head]):
+                print(f"\t{mtr}")
+                print("\t\tAverage", round(np.mean(model_report[head][mtr])*100,2))
+                print("\t\tSD", round(np.std(model_report[head][mtr])*100,2))
+               
 def main():
     cwd = os.getcwd()
     interest = 'og'
     results_dir = f"{cwd}/results"
     # get_results > prettify_results > consolidate_models > display_mdlrpt
-    #"consol_newmetrics"#"calc_newmetrics"#"test_seqeval"#"test_bifixing"#
-    what_to_do = "display_mdlrpt"
+    # calc_newmetrics > consol_newmetrics > display_new_mdlrpt
+    #"test_seqeval"#"test_bifixing"#
+    what_to_do = "consolidate_models"
+    r_num = 5
     ######################################################
     if what_to_do == "get_results":
-        for htype in ['mhead']:#, 'mhead']:
-            for mode in ["a","b","c","d","e"]:
+        for htype in ['sghead', 'mhead']:
+            for mode in ["a"]:#,"b","c","d","e"]:
                 if interest == "sent":
                     dsdcts_dir = f"{cwd}/inputs/{mode}/{interest}/{htype}_dsdcts"# if sent
                 else:
@@ -414,21 +474,21 @@ def main():
                 #models_dir = f"{cwd}/models/{mode}/{htype}"
                 models_dir = f"{cwd}/models/{mode}/{htype}/{interest}"#/quant"
                 quant = True
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:
-                    for r in list(range(5)):#[0]:
+                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:
+                    for r in list(range(r_num)):#[0]:
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
-                        metrics, preds, reals = evaluate_model(mode, htype, model_name, models_dir, dsdcts_dir, r, quant=quant)
+                        metrics, preds, reals, inputs = evaluate_model(mode, htype, model_name, models_dir, dsdcts_dir, r, quant=quant)
                         with open(f"{results_dir}/{mode}/{htype}/{interest}/metrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(convert_numpy_torch_to_python(metrics), f, indent=4)
                         print(metrics)
-                        randp = prettify_randp(htype, reals, preds)
+                        randp = prettify_randp(htype, reals, preds, inputs)
                         with open(f"{results_dir}/{mode}/{htype}/{interest}/randp_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(randp, f, indent=4)
     elif what_to_do == "prettify_results":
-        for htype in ["mhead"]:#,'mhead']:
-            for mode in ["a","b","c","d","e"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
-                    for r in list(range(5)):
+        for htype in ["sghead",'mhead']:
+            for mode in ["a"]:#,"b","c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+                    for r in list(range(r_num)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
                         with open(f"{results_dir}/{mode}/{htype}/{interest}/metrics_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
                             metrics = json.load(f)
@@ -442,44 +502,62 @@ def main():
                             print(f"{htype} {mode} {model_name} {r} FAILED")
                             print(e)
     elif what_to_do == "consolidate_models":
-        for htype in ['mhead']:#,'mhead']:
-            for mode in ["a","b","c","d","e"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
+        for htype in ['sghead','mhead']:
+            for mode in ["a"]:#,"b","c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
                     results_file_prefix = f"{results_dir}/{mode}/{htype}/{interest}/report_{model_name.split('/')[-1]}_"
-                    r_lst = list(range(5))
+                    r_lst = list(range(r_num))
                     report = make_model_report(mode, htype, results_file_prefix, r_lst)
                     with open(f"{results_dir}/{mode}/{htype}/{interest}/model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
                         json.dump(report, f, indent=4)
     elif what_to_do == "display_mdlrpt":
-        for htype in ["mhead"]:#,"mhead"]:#, 'mhead']:
+        for htype in ["sghead","mhead"]:#, 'mhead']:
             for mode in ["a"]:#,"b","c","d","e"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base"]:#
+                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base"]:#
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
                     with open(f"{results_dir}/{mode}/{htype}/{interest}/model_report_{model_name.split('/')[-1]}.json","r", encoding="utf-8") as f:
                         model_report = json.load(f)
                     display_model_report(mode, htype, model_report)
     elif what_to_do == "calc_newmetrics":
         for htype in ['sghead', 'mhead']:
-            for mode in ["a","b","c","d"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
-                    for r in list(range(5)):
+            for mode in ["a"]:#,"b","c","d"]:
+                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
+                    for r in list(range(r_num)):
                         print(f"\n-------- {htype} {mode} {model_name} {r} --------\n")
                         with open(f"{results_dir}/{mode}/{htype}/{interest}/randp_{model_name.split('/')[-1]}_{r}.json", "r", encoding="utf-8") as f:
                             randp = json.load(f)
-                        result = tokf1_calc(htype, randp)
-                        with open(f"{results_dir}/{mode}/{htype}/{interest}/newmetrics_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
+                        result = tokf1_calc(htype, randp, adj=False)#adj=True)
+                        with open(f"{results_dir}/{mode}/{htype}/{interest}/tokf1_{model_name.split('/')[-1]}_{r}.json","w", encoding="utf-8") as f:
                             json.dump(result, f, indent=4)
     elif what_to_do == "consol_newmetrics":
         for htype in ['sghead', 'mhead']:
-            for mode in ["a","b","c","d"]:
-                for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
+            for mode in ["a"]:#,"b","c","d"]:
+                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased"]:
                     print(f"\n-------- {htype} {mode} {model_name} --------\n")
-                    results_file_prefix = f"{results_dir}/{mode}/{htype}/newmetrics_{model_name.split('/')[-1]}_"
-                    r_lst = list(range(5))
+                    results_file_prefix = f"{results_dir}/{mode}/{htype}/{interest}/tokf1_{model_name.split('/')[-1]}_"
+                    r_lst = list(range(r_num))
                     report = newmetrics_make_model_report(mode, htype, results_file_prefix, r_lst)
-                    with open(f"{results_dir}/{mode}/{htype}/mewmetrics_model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
+                    with open(f"{results_dir}/{mode}/{htype}/{interest}/tokf1_model_report_{model_name.split('/')[-1]}.json","w", encoding="utf-8") as f:
                         json.dump(report, f, indent=4)
+    elif what_to_do == "display_new_mdlrpt":
+        for htype in ["sghead","mhead"]:#, 'mhead']:
+            for mode in ["a"]:#,"b","c","d","e"]:
+                for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased", "answerdotai/ModernBERT-base"]:#["microsoft/deberta-v3-base"]:#
+                    print(f"\n-------- {htype} {mode} {model_name} --------\n")
+                    with open(f"{results_dir}/{mode}/{htype}/{interest}/tokf1_model_report_{model_name.split('/')[-1]}.json","r", encoding="utf-8") as f:
+                        model_report = json.load(f)
+                    display_new_model_report(mode, htype, model_report)
+    elif what_to_do == "test":
+        mode = "a"
+        htype = "sghead"
+        dsdcts_dir = f"{cwd}/inputs/{mode}/{htype}_dsdcts"
+        models_dir = f"{cwd}/models/{mode}/{htype}/{interest}"
+        quant = True
+        model_name = "microsoft/deberta-v3-base"
+        r = 0
+        metrics, preds, reals = evaluate_model(mode, htype, model_name, models_dir, dsdcts_dir, r, quant=quant)
+
 
 
 if __name__=="__main__":
