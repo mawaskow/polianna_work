@@ -305,7 +305,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
 
 def main():
     cwd = os.getcwd()
-    interest = "og_lrdiv2"
+    interest = "over_sent"
     '''
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:

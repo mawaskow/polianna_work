@@ -11,8 +11,8 @@ params = HYPERPARAM_DCT["sghead"]
 extra = {
             "quant": True,
             "weight": False,
-            "over": False,
-            "sent": False
+            "over": True,
+            "sent": True
         }
 
 if __name__ == '__main__':
@@ -23,13 +23,13 @@ if __name__ == '__main__':
     dsdct_dir = sys.argv[5]
     label_list = get_label_set(mode, "sghead")
     #if extra['weight']:
-    params[mode][model_name]["lr"] = params[mode][model_name]["lr"]/2 #accounting for shrinking of dataset into train set
     if extra['over']:
         params[mode][model_name]["dropout"] = params[mode][model_name]["dropout"]*2
         params[mode][model_name]["weight_decay"] = params[mode][model_name]["weight_decay"]*10
-        params[mode][model_name]["lr"] = params[mode][model_name]["lr"]/2
+        #params[mode][model_name]["lr"] = params[mode][model_name]["lr"]/2
     if extra['sent']:
-        params[mode][model_name]["batch_size"] = params[mode][model_name]["batch_size"]*2
+        params[mode][model_name]["max_length"] = int(params[mode][model_name]["max_length"]/2)
+    params[mode][model_name]["lr"] = params[mode][model_name]["lr"]/2 
     finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[mode][model_name], extra)
     torch.cuda.empty_cache()
     gc.collect()

@@ -449,7 +449,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    interest= "og_lrdiv2"
+    interest= "over_sent"
     '''
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:

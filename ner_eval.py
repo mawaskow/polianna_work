@@ -456,12 +456,12 @@ def display_new_model_report(mode, htype, model_report):
                
 def main():
     cwd = os.getcwd()
-    interest = 'og'
+    interest = 'over_sent'
     results_dir = f"{cwd}/results"
     # get_results > prettify_results > consolidate_models > display_mdlrpt
     # calc_newmetrics > consol_newmetrics > display_new_mdlrpt
     #"test_seqeval"#"test_bifixing"#
-    what_to_do = "consolidate_models"
+    what_to_do = "prettify_results"
     r_num = 5
     ######################################################
     if what_to_do == "get_results":

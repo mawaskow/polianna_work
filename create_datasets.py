@@ -470,6 +470,27 @@ def create_ds(mode, htype, pol_dir, dir_addr, sent=False):
     ds.save_to_disk(dir_addr)
     print(f"Created dataset in {dir_addr}")
 
+def convert_tokens_to_entities(ds):
+    '''
+    Converts dataset from format of BIO lists in fields "label_{label}"
+    Returns same dataset but with entity lists in fields "{label}"
+    '''
+    datapoints = []
+    for entry in ds:
+        datapoint = {"id":entry['id'], 'text':entry['text'], 'tokens':entry['tokens']}
+        for field in list(entry):
+            if 'labels' in field:
+                fn = field.split("_")[-1]
+                datapoint[fn] = []
+                for lbl, token in zip(entry[field],entry['tokens']):
+                    if lbl == "B":
+                        datapoint[fn].append(token)
+                    elif lbl == "I":
+                        datapoint[fn][-1]+= " " + token
+        datapoints.append(datapoint)
+    en_ds= Dataset.from_list(datapoints)
+    return en_ds
+
 def create_dsdcts(dataset, dsdct_dir, r_list=[0]):
     for r in r_list:
         td_test = dataset.train_test_split(test_size=0.2, seed=r)
