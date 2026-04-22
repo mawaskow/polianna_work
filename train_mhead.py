@@ -11,7 +11,7 @@ params = HYPERPARAM_DCT["mhead"]
 extra = {
             "quant": True,
             "weight": False,
-            "over": True,
+            "over": False,
             "sent": True
         }
 
@@ -29,7 +29,8 @@ if __name__ == '__main__':
     if extra['sent']:
         params[mode][model_name]["max_length"] = int(params[mode][model_name]["max_length"]/4)
     params[mode][model_name]["lr"]= params[mode][model_name]["lr"]/2
-    finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[mode][model_name], extra=extra)
+    for loop in [2,1,0]:
+        finetune_mhead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params[mode][model_name], extra=extra, loop=loop)
     torch.cuda.empty_cache()
     gc.collect()
     time.sleep(3)

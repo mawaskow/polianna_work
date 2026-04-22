@@ -12,6 +12,7 @@ import bitsandbytes as bnb
 from datasets import DatasetDict
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset, DataLoader
 from typing import Any, Dict, List
@@ -140,7 +141,7 @@ TARGET_MODULES_DICT={
 }
 
 class MheadTokenClassifier(nn.Module):
-    def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1, quant=True):
+    def __init__(self, base_model_name, head_lst, num_labels=3, class_wgt_dct = None, head_wgt_dct = None, dropout = 0.1, quant=True, loop=0):
         super().__init__()
         self.model_name = base_model_name
         #self.encoder = AutoModel.from_pretrained(base_model_name) #ignore_mismatched_sizes= model_name == "dslim/bert-base-NER-uncased"
@@ -150,7 +151,7 @@ class MheadTokenClassifier(nn.Module):
             self.encoder = prepare_model_for_kbit_training(self.encoder)
             # lora
             lora_cfg = LoraConfig(
-                r=9,
+                r=8,
                 lora_alpha=32,
                 lora_dropout=0.01,
                 bias="none",
@@ -168,6 +169,12 @@ class MheadTokenClassifier(nn.Module):
         self.classifiers = nn.ModuleDict({
             head: nn.Linear(hidden_size, num_labels) for head in self.heads
         })
+        if loop == 2:
+            for head in self.heads:
+                init.xavier_uniform_(self.classifiers[head].weight)
+        elif loop == 1:
+            for head in self.heads:
+                init.kaiming_normal_(self.classifiers.weight[head], mode='fan_in', nonlinearity='relu')
         self.classifiers.to(torch.float32) # want higher precision
         self.dropout = nn.Dropout(dropout)
         self.class_weights = class_wgt_dct if class_wgt_dct else {}
@@ -312,7 +319,7 @@ def mhead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False):
     meta_metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     return meta_metrics
 
-def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params, extra=None):
+def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, params, extra=None, loop=0):
     '''
     Docstring for finetune_mhead_model
     
@@ -343,7 +350,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
     label_list = ['O', 'B', 'I']
     label2id = {l: i for i, l in enumerate(label_list)}
     id2label = {i: l for i, l in enumerate(label_list)}
-    save_path = f"{model_save_addr}/{model_name.split('/')[-1]}_{r}"
+    save_path = f"{model_save_addr}/{model_name.split('/')[-1]}_{r}-{loop}"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -449,7 +456,7 @@ def finetune_mhead_model(model_name, head_lst, model_save_addr, dsdct_dir, r, pa
 
 def main():
     cwd = os.getcwd()
-    interest= "over_sent"
+    interest= "sent_lrdiv2"
     '''
     ########### one-off ###########
     for mode in ["a"]:#,"b"]:#,"c", "d"]:
@@ -487,8 +494,8 @@ def main():
         for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/mhead/{interest}"
-                if interest == "sent":
-                    dsdct_dir = f"{cwd}/inputs/{mode}/{interest}/mhead_dsdcts"
+                if "sent" in interest:
+                    dsdct_dir = f"{cwd}/inputs/{mode}/sent/mhead_dsdcts"
                 else:
                     dsdct_dir = f"{cwd}/inputs/{mode}/mhead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")

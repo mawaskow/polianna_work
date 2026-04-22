@@ -403,6 +403,7 @@ def arts_to_sents(tokens, labels_dct, text):
                 sent_labels[key].append(labels_dct[key][current_token_idx])
             current_token_idx += 1
         sentence_datapoints.append({
+            "text": sent_text,
             "tokens": sent_tokens,
             **sent_labels
         })

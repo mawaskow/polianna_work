@@ -13,6 +13,7 @@ import time
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
+import torch.nn.init as init
 import gc
 import tqdm
 from create_datasets import get_label_set, calculate_wgts_from_dataset
@@ -134,7 +135,7 @@ TARGET_MODULES_DICT={
     "answerdotai/ModernBERT-base":["attn.Wqkv","attn.Wo","mlp.Wi","mlp.Wo"]
 }
 
-def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params = None, extra = None):
+def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params = None, extra = None, loop=0):
     '''
     Docstring for finetune_sghead_model
     
@@ -145,6 +146,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     :param r: which dataset split dict to use
     :param params: hyperparameter dict including num_epochs, lr, weight_decay, batch_size, num_warmup_steps, and patience
     '''
+    save_path = f"{model_save_addr}/{model_name.split('/')[-1]}_{r}-{loop}"
     st = time.time()
     if not params:
         params = {
@@ -210,10 +212,14 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
             device_map="auto"
         )
         model.classifier = torch.nn.Linear(model.config.hidden_size, len(label_list)) # fixes bert-base-NER-uncased errors
+        if loop == 2:
+            init.xavier_uniform_(model.classifier.weight)
+        elif loop == 1:
+            init.kaiming_normal_(model.classifier.weight, mode='fan_in', nonlinearity='relu')
         model.classifier.to(dtype=torch.float32, device=dev)
         model = prepare_model_for_kbit_training(model)
         lora_config = LoraConfig(
-            r=9,
+            r=8,
             lora_alpha=32,
             target_modules=TARGET_MODULES_DICT[model_name],
             lora_dropout=0.1,
@@ -276,7 +282,6 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
             best_epoch_metrics = metrics
             model_epoch = epoch
             epochs_no_improvement = 0
-            save_path = f"{model_save_addr}/{model_name.split('/')[-1]}_{r}"
             model.save_pretrained(save_path)
             tokenizer.save_pretrained(save_path)
         else:
@@ -287,10 +292,10 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     best_epoch_metrics['epoch_saved'] = model_epoch
     best_epoch_metrics['time_min'] = round((time.time()-st)/60,2)
     print(best_epoch_metrics)
-    with open(f"{model_save_addr}/{model_name.split('/')[-1]}_{r}/params.json", "w", encoding="utf-8") as f:
+    with open(f"{save_path}/params.json", "w", encoding="utf-8") as f:
         json.dump(params, f, ensure_ascii=False, indent=4)
     metrics_clean = convert_numpy_torch_to_python(best_epoch_metrics)
-    with open(f"{model_save_addr}/{model_name.split('/')[-1]}_{r}/metrics.json", "w", encoding="utf-8") as f:
+    with open(f"{save_path}/metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics_clean, f, ensure_ascii=False, indent=4)
     # cleanup
     del model
@@ -305,12 +310,13 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
 
 def main():
     cwd = os.getcwd()
-    interest = "over_sent"
+    interest = "og"
     '''
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
-        dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
+        #dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
+        dsdct_dir = f"{cwd}/inputs/{mode}/sent/sghead_dsdcts"
         label_list = get_label_set(mode, "sghead")
         #
         model_name = "microsoft/deberta-v3-base"
@@ -322,9 +328,9 @@ def main():
             "over": False,
             "sent": True
         }
-        #params['lr']=params['lr']/2 #accounting for train set being smaller 
+        params['lr']=params['lr']/2 #accounting for train set being smaller 
         if extra['sent'] and not extra['over']:
-            params['max_length']=int(params['max_length']/2)
+            params['max_length']=int(params['max_length']/4)
             #params['weight_decay']=params['weight_decay']*10
             #params['dropout']=params['dropout']*2
             params['batch_size']=params['batch_size']*2
@@ -336,15 +342,17 @@ def main():
             params['max_length']=int(params['max_length']/2)
             params['weight_decay']=params['weight_decay']*10
             params['dropout']=params['dropout']*2
-        finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
+        for loop in [2,1,0]:
+            finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra, loop=loop)
+        #finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
     for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
         for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
-                if interest == "sent":
-                    dsdct_dir = f"{cwd}/inputs/{mode}/{interest}/sghead_dsdcts"
+                if "sent" in interest:
+                    dsdct_dir = f"{cwd}/inputs/{mode}/sent/sghead_dsdcts"
                 else:
                     dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")
