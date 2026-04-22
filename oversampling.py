@@ -1,33 +1,48 @@
 import os
 import numpy as np
 import datasets
+from create_datasets import get_label_set
 
-def get_overall_counts(ds, label_lst):
+def get_overall_counts(ds, htype, label_lst):
     # initialize values
     total_counts = {label: {"spans":0,"tokens":0} for label in label_lst}
     total_spans = 0
     total_labeled_tokens = 0
     # get counts for label spans and tokens
-    for row in ds:
-        for label in label_lst:
-            spans = row[f"labels_{label}"].count("B")
-            innies = row[f"labels_{label}"].count("I")
-            total_counts[label]["spans"] += spans
-            total_counts[label]["tokens"] += spans+innies
-            total_spans+= spans
-            total_labeled_tokens+=spans+innies
+    if htype == "mhead":
+        for row in ds:
+            for label in label_lst:
+                spans = row[f"labels_{label}"].count("B")
+                innies = row[f"labels_{label}"].count("I")
+                total_counts[label]["spans"] += spans
+                total_counts[label]["tokens"] += spans+innies
+                total_spans+= spans
+                total_labeled_tokens+=spans+innies
+    elif htype == "sghead":
+        for row in ds:
+            for label in label_lst:
+                spans = row["ner_tags"].count(f"B-{label}")
+                innies = row["ner_tags"].count(f"I-{label}")
+                total_counts[label]["spans"] += spans
+                total_counts[label]["tokens"] += spans+innies
+                total_spans+= spans
+                total_labeled_tokens+=spans+innies
     total_counts["Overall"] = {"spans":total_spans,"tokens":total_labeled_tokens}
     for label in list(total_counts):
         print(f"{label}: {round((total_counts[label]['spans']/total_spans)*100,2)}% all spans ({total_counts[label]['spans']})")
     return total_counts
 
-def article_label_coverage(ds, label_lst, total_counts):
+def article_label_coverage(ds, htype, label_lst, total_counts):
     tracking = {}
     for row in ds:
         tracking[row['id']] = {label: {"spans":0,"tokens":0} for label in label_lst}
         for label in label_lst:
-            spans = row[f"labels_{label}"].count("B")
-            innies = row[f"labels_{label}"].count("I")
+            if htype == "mhead":
+                spans = row[f"labels_{label}"].count("B")
+                innies = row[f"labels_{label}"].count("I")
+            elif htype == "sghead":
+                spans = row["ner_tags"].count(f"B-{label}")
+                innies = row["ner_tags"].count(f"I={label}")
             tracking[row['id']][label]["spans"] = spans
             tracking[row['id']][label]["tokens"] = spans+innies
             #
@@ -135,23 +150,29 @@ def create_new_osds(ds, overs_arts):
     ovs_ds = datasets.concatenate_datasets([ds, osds])
     return ovs_ds
 
-def oversample_ds(ds, label_lst):
+def oversample_ds(ds, htype, label_lst):
     print("\nOld:")
-    total_counts = get_overall_counts(ds, label_lst)
-    art_lbl_tracking = article_label_coverage(ds, label_lst, total_counts)
+    total_counts = get_overall_counts(ds, htype, label_lst)
+    print(total_counts)
+    art_lbl_tracking = article_label_coverage(ds, htype, label_lst, total_counts)
     arts_of_occurrence = get_art_lists_for_lbls(art_lbl_tracking, label_lst)
     #arts_of_interest, minority_labels, min_label, max_label = compare_art_lbl_occ(arts_of_occurrence, quant=0.3)
     arts_of_interest, minority_labels, min_label, max_label = compare_overall_lbl_occ(total_counts,arts_of_occurrence, quant=0.333)
     overs_arts = refine_arts_of_int("minorities", art_lbl_tracking, arts_of_interest, minority_labels, min_label, max_label)
     osds = create_new_osds(ds, overs_arts)
     print("\nNew:")
-    new_counts = get_overall_counts(osds, label_lst)
+    new_counts = get_overall_counts(osds, htype, label_lst)
+    print(new_counts)
     return osds
 
 def main():
     cwd = os.getcwd()
     letter = "a"
-    htype = "mhead"    
+    htype = "mhead"   
+    #ds = datasets.Dataset.load_from_disk(f"{cwd}/inputs/{letter}/{htype}_ds")
+    ds = datasets.Dataset.load_from_disk(f"{cwd}/inputs/{letter}/sent/{htype}_ds")
+    label_lst = get_label_set(letter, "mhead")
+    oversample_ds(ds, htype, label_lst)
 
 if __name__=="__main__":
     main()

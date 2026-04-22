@@ -13,10 +13,12 @@ import time
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
+import torch.nn.init as init
 import gc
 import tqdm
-from create_datasets import get_label_set, calculate_wgts_from_dataset, CLASS_WEIGHTS
-from auxil import bio_fixing, convert_numpy_torch_to_python
+from create_datasets import get_label_set, calculate_wgts_from_dataset
+from auxil import TokenBasedSampler, bio_fixing, convert_numpy_torch_to_python, HYPERPARAM_DCT
+from oversampling import oversample_ds
 
 #############
 # functions #
@@ -27,11 +29,12 @@ class SgheadDataset(Dataset):
         self.tokenizer = tokenizer
         self.label2id = label2id
         self.max_length = max_length
-        self.chunk_overlap = chunk_overlap
+        self.chunk_overlap = chunk_overlap if chunk_overlap!= max_length else int(max_length/2)
         # let's prep these chunks
         # __getitem__ is gonna be sooo quick
         # also gotta bring tokenize_and_align_labels in here
         self.items = []
+        self.lengths = []
         for entry in hf_dataset:
             tokens = entry["tokens"]
             ner_tags = entry["ner_tags"]
@@ -51,11 +54,13 @@ class SgheadDataset(Dataset):
                     else:
                         label_ids.append(-100)
                     previous_word_idx = word_idx
-                self.items.append({
+                item = {
                     "input_ids": torch.tensor(tokenized_inputs["input_ids"][i]),
                     "attention_mask": torch.tensor(tokenized_inputs["attention_mask"][i]),
                     "labels": torch.tensor(label_ids),
-                })
+                }
+                self.items.append(item)
+                self.lengths.append(len(item["input_ids"]))
     def __len__(self):
         return len(self.items)
     def __getitem__(self, idx):
@@ -83,6 +88,7 @@ def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False, 
     total_eval_loss = 0.0
     all_preds = []
     all_labels = []
+    all_inputs = []
     weights = weights if weights!=None else [1.0 for idx in list(id2label)]
     weights = torch.tensor(weights, dtype=torch.float32).to(dev)
     with torch.no_grad():
@@ -98,23 +104,27 @@ def sghead_evaluate_model(model, dataloader, dev, id2label, return_rnp = False, 
             #
             predictions = torch.argmax(logits, dim=-1).detach().cpu().numpy()
             labels = batch["labels"].detach().cpu().numpy()
+            inputs = batch["input_ids"].detach().cpu().numpy()
             # for sentence token list labels in list of batch sentences
-            for preds, labs in zip(predictions, labels):
+            for preds, labs, inps in zip(predictions, labels, inputs):
                 # holds the label(not id) label for each tok in sentence
                 true_preds = []
                 true_labs = []
+                true_inps = []
                 # for token label in sentence token list labels
-                for p, l in zip(preds, labs):
+                for p, l, i in zip(preds, labs, inps):
                     if l != -100:
                         true_preds.append(id2label[p])
                         true_labs.append(id2label[l])
+                        true_inps.append(i)
                 # append sentence token list to list of sentences
                 all_preds.append(true_preds)
                 all_labels.append(true_labs)
+                all_inputs.append(true_inps)
     predictions_fixed = bio_fixing("sghead", all_preds)
     metrics = seqeval.compute(predictions=predictions_fixed, references=all_labels)
     if return_rnp:
-        return metrics, predictions_fixed, all_labels
+        return metrics, predictions_fixed, all_labels, all_inputs
     metrics['avg_eval_loss'] = total_eval_loss / len(dataloader)
     return metrics
 
@@ -125,7 +135,7 @@ TARGET_MODULES_DICT={
     "answerdotai/ModernBERT-base":["attn.Wqkv","attn.Wo","mlp.Wi","mlp.Wo"]
 }
 
-def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params = None, extra = None):
+def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params = None, extra = None, loop=0):
     '''
     Docstring for finetune_sghead_model
     
@@ -136,6 +146,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     :param r: which dataset split dict to use
     :param params: hyperparameter dict including num_epochs, lr, weight_decay, batch_size, num_warmup_steps, and patience
     '''
+    save_path = f"{model_save_addr}/{model_name.split('/')[-1]}_{r}-{loop}"
     st = time.time()
     if not params:
         params = {
@@ -159,19 +170,26 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    label_lst = [label[2:] for label in label_list if label[0]=="B"]
     dataset_dict = DatasetDict.load_from_disk(f"{dsdct_dir}/dsdct_r{r}")
-    train_dataset = SgheadDataset(dataset_dict["train"], tokenizer, label2id, max_length=params['max_length'])
+    train_dataset = dataset_dict["train"]
+    if extra['over']:
+        train_dataset = oversample_ds(train_dataset, "sghead", label_lst)
+    train_dataset = SgheadDataset(train_dataset, tokenizer, label2id, max_length=params['max_length'])
     dev_dataset = SgheadDataset(dataset_dict["dev"], tokenizer, label2id, max_length=params['max_length'])
+    train_sampler = TokenBasedSampler(train_dataset.lengths, max_tokens=(params['batch_size']*params['max_length']))
     train_loader = DataLoader(
         train_dataset,
-        batch_size=params["batch_size"],
-        shuffle=True,
+        #batch_size=params["batch_size"],
+        batch_sampler= train_sampler,
+        #shuffle=True,
         collate_fn=lambda b: sghead_collate(b, tokenizer.pad_token_id)
     )
     dev_loader = DataLoader(
         dev_dataset,
-        batch_size=params["batch_size"],
-        shuffle=False,
+        #batch_size=params["batch_size"],
+        batch_sampler = TokenBasedSampler(dev_dataset.lengths, max_tokens=(params['batch_size']*params['max_length'])),
+        #shuffle=False,
         collate_fn=lambda b: sghead_collate(b, tokenizer.pad_token_id)
     )
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -194,10 +212,14 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
             device_map="auto"
         )
         model.classifier = torch.nn.Linear(model.config.hidden_size, len(label_list)) # fixes bert-base-NER-uncased errors
+        if loop == 2:
+            init.xavier_uniform_(model.classifier.weight)
+        elif loop == 1:
+            init.kaiming_normal_(model.classifier.weight, mode='fan_in', nonlinearity='relu')
         model.classifier.to(dtype=torch.float32, device=dev)
         model = prepare_model_for_kbit_training(model)
         lora_config = LoraConfig(
-            r=9,
+            r=8,
             lora_alpha=32,
             target_modules=TARGET_MODULES_DICT[model_name],
             lora_dropout=0.1,
@@ -222,7 +244,7 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     num_training_steps = params["num_epochs"] * len(train_loader)
     scheduler = get_linear_schedule_with_warmup(
         optimizer,
-        num_warmup_steps=params["num_warmup_steps"],
+        num_warmup_steps=params["num_warmup_steps"],#int(num_training_steps * 0.1),#
         num_training_steps=num_training_steps
     )
     # enabling weighted loss
@@ -260,7 +282,6 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
             best_epoch_metrics = metrics
             model_epoch = epoch
             epochs_no_improvement = 0
-            save_path = f"{model_save_addr}/{model_name.split('/')[-1]}_{r}"
             model.save_pretrained(save_path)
             tokenizer.save_pretrained(save_path)
         else:
@@ -271,10 +292,10 @@ def finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r,
     best_epoch_metrics['epoch_saved'] = model_epoch
     best_epoch_metrics['time_min'] = round((time.time()-st)/60,2)
     print(best_epoch_metrics)
-    with open(f"{model_save_addr}/{model_name.split('/')[-1]}_{r}/params.json", "w", encoding="utf-8") as f:
+    with open(f"{save_path}/params.json", "w", encoding="utf-8") as f:
         json.dump(params, f, ensure_ascii=False, indent=4)
     metrics_clean = convert_numpy_torch_to_python(best_epoch_metrics)
-    with open(f"{model_save_addr}/{model_name.split('/')[-1]}_{r}/metrics.json", "w", encoding="utf-8") as f:
+    with open(f"{save_path}/metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics_clean, f, ensure_ascii=False, indent=4)
     # cleanup
     del model
@@ -294,36 +315,44 @@ def main():
     ########### one-off ###########
     for mode in ["a"]:#,"b","c", "d"]:
         model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
-        dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
+        #dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
+        dsdct_dir = f"{cwd}/inputs/{mode}/sent/sghead_dsdcts"
         label_list = get_label_set(mode, "sghead")
         #
         model_name = "microsoft/deberta-v3-base"
         r = 0
-        params = {
-            "num_epochs": 30,
-            "lr": 7E-4,
-            "weight_decay": 0.01,
-            "batch_size":16,
-            "num_warmup_steps":0,
-            "patience": 5,
-            "dropout": 0.1,
-            "max_length": 512
-            }
+        params = HYPERPARAM_DCT["sghead"][mode][model_name]
         extra = {
             "quant": True,
             "weight": False,
             "over": False,
-            "sent": False
+            "sent": True
         }
-        finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
+        params['lr']=params['lr']/2 #accounting for train set being smaller 
+        if extra['sent'] and not extra['over']:
+            params['max_length']=int(params['max_length']/4)
+            #params['weight_decay']=params['weight_decay']*10
+            #params['dropout']=params['dropout']*2
+            params['batch_size']=params['batch_size']*2
+        if extra['over'] and not extra['sent']:
+            params['weight_decay']=params['weight_decay']*10
+            params['dropout']=params['dropout']*2
+            #params['batch_size']=int(params['batch_size']//2)
+        if extra['over'] and extra['sent']:
+            params['max_length']=int(params['max_length']/2)
+            params['weight_decay']=params['weight_decay']*10
+            params['dropout']=params['dropout']*2
+        for loop in [2,1,0]:
+            finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra, loop=loop)
+        #finetune_sghead_model(model_name, label_list, model_save_addr, dsdct_dir, r, params, extra)
     '''
     ########### subprocess ###########
-    for model_name in ["microsoft/deberta-v3-base","FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
-        for mode in ["a","b","c","d","e"]:
+    for model_name in ["microsoft/deberta-v3-base"]:#,"FacebookAI/xlm-roberta-base","dslim/bert-base-NER-uncased","answerdotai/ModernBERT-base"]:#
+        for mode in ["a"]:#,"b","c","d","e"]:
             for r in list(range(5)):
                 model_save_addr = f"{cwd}/models/{mode}/sghead/{interest}"
-                if interest == "sent":
-                    dsdct_dir = f"{cwd}/inputs/{mode}/{interest}/sghead_dsdcts"
+                if "sent" in interest:
+                    dsdct_dir = f"{cwd}/inputs/{mode}/sent/sghead_dsdcts"
                 else:
                     dsdct_dir = f"{cwd}/inputs/{mode}/sghead_dsdcts"
                 print(f"\n--- Starting '{mode}' run {model_name} r{r} ---")

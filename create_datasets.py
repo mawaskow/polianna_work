@@ -8,9 +8,11 @@ mhead: labels are BIO format in a different label set for each class
 '''
 import json
 import pandas as pd
+import numpy as np
 import os
 from datasets import Dataset, DatasetDict, load_from_disk
-from oversampling import oversample_ds
+#from oversampling import oversample_ds
+from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from collections import Counter
 import nltk
 #nltk.download('punkt_tab')
@@ -78,23 +80,6 @@ ORIG_SPAN_WEIGHTS = {'Instrumenttypes': 0.16719409282700423,
  '': 0.0006712696586114307,
  'Time_Resources': 0.0006712696586114307,
  'Authority_established': 0.0014863828154967396}
-
-CLASS_WEIGHTS = {
-    "a":{
-        'Actor': 0.39791860249024347,
-        'InstrumentType': 0.6808267090620032,
-        'Objective': 2.273036093418259,
-        'Resource': 4.451559251559251,
-        'Time': 2.828533685601057
-    },
-    "a2":{
-        'Actor': 0.08938858948150902,
-        'InstrumentType': 0.15294117647058825,
-        'Objective': 0.510615711252654,
-        'Resource': 1.0,
-        'Time': 0.6354029062087188
-    }
-}
 
 def df_loading(pol_dir, col_sel=["Policy","Text","Tokens","Curation"]):
     '''
@@ -398,6 +383,9 @@ def span_to_mhead_lbls(mode, name, tokens, spans):
     return token_labels
 
 def arts_to_sents(tokens, labels_dct, text):
+    '''
+    Converts the article entities into sentence entities while maintaining label alignment
+    '''
     sentences = nltk.sent_tokenize(text)
     sentence_datapoints = []
     current_token_idx = 0
@@ -415,6 +403,7 @@ def arts_to_sents(tokens, labels_dct, text):
                 sent_labels[key].append(labels_dct[key][current_token_idx])
             current_token_idx += 1
         sentence_datapoints.append({
+            "text": sent_text,
             "tokens": sent_tokens,
             **sent_labels
         })
@@ -482,6 +471,27 @@ def create_ds(mode, htype, pol_dir, dir_addr, sent=False):
     ds.save_to_disk(dir_addr)
     print(f"Created dataset in {dir_addr}")
 
+def convert_tokens_to_entities(ds):
+    '''
+    Converts dataset from format of BIO lists in fields "label_{label}"
+    Returns same dataset but with entity lists in fields "{label}"
+    '''
+    datapoints = []
+    for entry in ds:
+        datapoint = {"id":entry['id'], 'text':entry['text'], 'tokens':entry['tokens']}
+        for field in list(entry):
+            if 'labels' in field:
+                fn = field.split("_")[-1]
+                datapoint[fn] = []
+                for lbl, token in zip(entry[field],entry['tokens']):
+                    if lbl == "B":
+                        datapoint[fn].append(token)
+                    elif lbl == "I":
+                        datapoint[fn][-1]+= " " + token
+        datapoints.append(datapoint)
+    en_ds= Dataset.from_list(datapoints)
+    return en_ds
+
 def create_dsdcts(dataset, dsdct_dir, r_list=[0]):
     for r in r_list:
         td_test = dataset.train_test_split(test_size=0.2, seed=r)
@@ -489,6 +499,45 @@ def create_dsdcts(dataset, dsdct_dir, r_list=[0]):
         ds_dct = DatasetDict({"train":train_dev['train'], "dev":train_dev['test'], "test":td_test['test']})
         ds_dct.save_to_disk(f"{dsdct_dir}/dsdct_r{r}")
     print(f"Created {len(r_list)} dataset(s) in {dsdct_dir}")
+
+def get_stratified_dsdct_ids(dataset, label_names, n_splits=5, seed=9):
+    y = []
+    for ex in dataset:
+        presence = [1 if f"B-{lname}" in ex['ner_tags'] else 0 
+                    for lname in label_names]
+        y.append(presence)
+    y = np.array(y)
+    #print(y)
+    mskf = MultilabelStratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    folds = []
+    for fold_num, (train_dev_idx, test_idx) in enumerate(mskf.split(np.zeros(len(y)), y)):
+        y_inner = y[train_dev_idx]
+        inner_mskf = MultilabelStratifiedKFold(n_splits=n_splits-1, shuffle=True, random_state=seed)
+        train_idx, dev_idx = next(inner_mskf.split(np.zeros(len(y_inner)), y_inner))
+        folds.append({
+            "train": train_dev_idx[train_idx],
+            "dev": train_dev_idx[dev_idx],
+            "test": test_idx
+        })
+    return folds
+
+def create_stratified_dsdcts(sghead_dataset, mhead_dataset, mode, dsdct_dir, n_splits = 5):
+    label_names = get_label_set(mode,"mhead")
+    folds = get_stratified_dsdct_ids(sghead_dataset, label_names, n_splits=n_splits, seed=9)
+    for foldid, idx_dct in enumerate(folds):
+        sg_ds_dct = DatasetDict({
+            "train": sghead_dataset.select(idx_dct['train']),
+            "dev": sghead_dataset.select(idx_dct['dev']),
+            "test": sghead_dataset.select(idx_dct['test'])
+        })
+        sg_ds_dct.save_to_disk(f"{dsdct_dir}/sghead_dsdcts/dsdct_r{foldid}")
+        m_ds_dct = DatasetDict({
+            "train": mhead_dataset.select(idx_dct['train']),
+            "dev": mhead_dataset.select(idx_dct['dev']),
+            "test": mhead_dataset.select(idx_dct['test'])
+        })
+        m_ds_dct.save_to_disk(f"{dsdct_dir}/mhead_dsdcts/dsdct_r{foldid}")
+    print(f"Created {n_splits} dataset(s) in {dsdct_dir}")
 
 def create_hyptune_dsdct(dataset, dsdct_dir):
     train_dev = dataset.train_test_split(test_size=0.2, seed=9)
@@ -518,11 +567,6 @@ def calculate_wgts_from_dataset(dataset, label_lst, htype):
             final_weights.append(weight)
         return final_weights
 
-
-def create_oversampled_dsdcts(mode, htype, r, dsdctdir):
-    oversample_ds()
-    print(0)
-
 ########
 # main #
 ########
@@ -538,13 +582,16 @@ def main():
         create_ds(mode, "mhead", pol_dir, cwd+f"/inputs/{mode}/mhead_ds")
         print(f"Made {mode} datasets")
     print("Made datasets")
+    '''
+    '''
     ### creates the dataset dictionaries for each r split from the sghead and mhead datasets
     for mode in ["a","b", "c", "d", "e"]:
         print(mode)
         sghead_ds = load_from_disk(cwd+f"/inputs/{mode}/sghead_ds")
-        create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/sghead_dsdcts", list(range(5)))
+        #create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/sghead_dsdcts", list(range(5)))
         mhead_ds = load_from_disk(cwd+f"/inputs/{mode}/mhead_ds")
-        create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/mhead_dsdcts", list(range(5)))
+        #create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/mhead_dsdcts", list(range(5)))
+        create_stratified_dsdcts(sghead_ds, mhead_ds, mode, cwd+f"/inputs/{mode}/", 5)
         print(f"Made {mode} dsdcts")
     print("Made datasetdcts")
     '''
@@ -560,6 +607,7 @@ def main():
         print(f"Made {mode} dsdcts")
     print("Made datasetdcts")
     '''
+    '''
     ### creates whole sghead and mhead datasets from original POLIANNA database
     interest = "sent"
     for mode in ["a","b", "c", "d", "e"]:
@@ -568,15 +616,20 @@ def main():
         create_ds(mode, "mhead", pol_dir, cwd+f"/inputs/{mode}/{interest}/mhead_ds", True)
         print(f"Made {mode} datasets")
     print("Made datasets")
+    '''
+    ''''''
     ### creates the dataset dictionaries for each r split from the sghead and mhead datasets
+    interest = "sent"
     for mode in ["a","b", "c", "d", "e"]:
         print(mode)
         sghead_ds = load_from_disk(cwd+f"/inputs/{mode}/{interest}/sghead_ds")
-        create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/{interest}/sghead_dsdcts", list(range(5)))
+        #create_dsdcts(sghead_ds, cwd+f"/inputs/{mode}/{interest}/sghead_dsdcts", list(range(5)))
         mhead_ds = load_from_disk(cwd+f"/inputs/{mode}/{interest}/mhead_ds")
-        create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/{interest}/mhead_dsdcts", list(range(5)))
+        #create_dsdcts(mhead_ds, cwd+f"/inputs/{mode}/{interest}/mhead_dsdcts", list(range(5)))
+        create_stratified_dsdcts(sghead_ds, mhead_ds, mode, f"{cwd}/inputs/{mode}/{interest}/", n_splits = 5)
         print(f"Made {mode} dsdcts")
     print("Made datasetdcts")
+    
 
 
 if __name__=="__main__":
